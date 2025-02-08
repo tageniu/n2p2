@@ -304,7 +304,7 @@ scaling. See :cpp:enumerator:`nnp::SymmetryFunction::ScalingType`.
    ``symfunction_short O 13 0.1 0.2 1.0 8.0 16.0``
 
 Defines a symmetry function for a specific element. The first argument is the
-element symbol, the second sets the the type. The remaining parameters depend on
+element symbol, the second sets the type. The remaining parameters depend on
 the symmetry function type, follow the links in the right column of the table
 and look for the detailed description of the class.
 
@@ -335,6 +335,92 @@ and look for the detailed description of the class.
      - :cpp:class:`nnp::SymFncCompAngnWeighted`
    * - 25
      - :cpp:class:`nnp::SymFncCompAngwWeighted`
+
+----
+
+``ewald_truncation_error_method``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+In 4G the Ewald summation is used if periodic boundary conditions are applied.
+Both the reciprocal and the real space sum need to be truncated. For this, two
+different schemes are available. This defines the behaviour of ``ewald_prec``.
+
+**Usage**:
+   ``ewald_truncation_error_method <mode>``
+
+**Examples**:
+   ``ewald_truncation_error_method 1``
+
+
+*  ``0``: *default*, **Method by Jackson & Catlow**
+
+    This method is based on the idea to truncate all terms that are smaller in
+    magnitude than a certain threshold [3]_. It is the method used in *RuNNer*.
+
+*  ``1``: **Method by Kolafa & Perram**
+
+    Statistical assumptions are made of the material to incorporate cancelling
+    effects of the energy contributions [4]_. It is the recommended method.
+
+``ewald_prec``
+^^^^^^^^^^^^^^
+
+Depending on the mode in ``ewald_truncation_error_method`` this keyword has
+different meanings. The parameter ``<threshold>`` determines the cutoff radii in
+real and reciprocal space. For both methods a smaller threshold leads to
+increased radii and thus to a degrade in performance. Also the memory footprint
+can become quite noticeable for very small values.
+
+.. warning::
+
+    If n2p2 crashes in 4G mode because it needs more memory than available on
+    the machine, it may be related to the ``<threshold>`` parameter. This can
+    be tested by increasing its value considerably.
+
+* If ``ewald_truncation_error_method 0``
+
+    **Usage**:
+        ``ewald_prec <threshold>``
+
+    ``<threshold>`` is a dimensionless parameter that controls the accuracy of
+    the Ewald summation. Typical values are in the range of ``1.e-2`` to
+    ``1.e-7``.
+
+* If ``ewald_truncation_error_method 1``
+
+    **Usage**:
+        ``ewald_prec <threshold> <max charge> <<real space cutoff>>``
+
+    ``<threshold>`` loosely corresponds to the standard deviation of the
+    electrostatic force error one would like to achieve and has to be given in
+    the same units as the forces in the training data. However, the methods
+    tends to overestimate the actual error, so one may test the accuracy for
+    different values. Choosing values that are orders of magnitude smaller than
+    the RMSE of the short-range force errors does not make sense.
+    ``<max charge>`` should be the maximum charge (in magnitude) that appears during
+    training. This does not have to be very precise but should be given in the
+    same units as in the training data. :ref:`nnp-norm` outputs this quantity.
+    The default is ``1.``.
+
+    It is important to note that this method has two different modes.
+    ``<<real space cutoff>>`` is an optional parameter. It fixes the real space
+    cutoff in the Ewald summation and adjusts the Ewald parameter and the
+    reciprocal space cutoff accordingly such that the specified ``<threshold>``
+    is still satisfied. If ``<<real space cutoff>>`` is chosen unreasonably
+    small, the truncation error estimate may not be reliable anymore and
+    a warning is given. This mode is useful when n2p2 is used in combination
+    with other programs like LAMMPS, since they often expect a fixed cutoff
+    during the simulation. If ``<<real space cutoff>>`` is not specified, an
+    optimal combination of the real and reciprocal space cutoff is computed.
+    However, "optimal" refers to the computational effort inside n2p2. If used
+    in combination with other programs like LAMMPS, it will not be optimal in
+    general. Also note that the optimal cutoffs may change during the
+    simulation since they depend on factors like simulation cell volume, number
+    of atoms etc. In general we recommend the optimal choice of the cutoffs
+    only if n2p2 is used as a standalone tool. If it is used in the interface
+    mode, a good choice is to set ``<<real space cutoff>>`` to the symmetry
+    function cutoff. This choice may also decrease the memory footprint.
+
 
 Training-specific keywords
 --------------------------
@@ -421,6 +507,87 @@ If this keyword is omitted the default value is ``RMSEpa``. The keyword does not
 influence the output in the ``learning-curve.out`` file. There, all error metrics
 are written.
 
+----
+
+.. _normalize_data_set:
+
+``normalize_data_set``
+^^^^^^^^^^^^^^^^^^^^^^
+
+**Usage**:
+   ``normalize_data_set <string>``
+
+**Examples**:
+   ``normalize_data_set ref``
+
+   ``normalize_data_set force``
+
+Enables automatic data set normalization (see also :ref:`units`) as a
+pre-processing step during training with :ref:`nnp-train`. If this keyword is
+present, an additional calculation will be performed after the initialization of
+weights. The file and screen output will contain a corresponding section ``DATA
+SET NORMALIZATION`` summarizing the results of the data set normalization step.
+Three different modes of normalization can be selected:
+
+*  ``stats-only`` : **No or manually provided normalization, compute only statistics**
+
+   This option will trigger a calculation of statistics: mean and standard
+   deviation of reference energies and forces will be computed. Also, a first
+   prediction with the (randomly) initialized NN weights will be executed.
+   Finally, statistics for these energy and force predictions will be collected
+   and printed to screen. If present, already given normalization data (keywords
+   ``mean_energy``, ``conv_energy`` and ``conv_length``) in the ``input.nn``
+   file will be read and applied.
+
+*  ``ref`` : **Normalization based on reference energies and forces**
+
+   Energy and force statistics are computed as in mode ``stats-only``. The mean
+   and standard deviation of reference energies and forces are used to compute
+   three numbers for normalization: (1) the mean energy per atom, (2) a
+   conversion factor for energies , and (3) a conversion factor for lengths .
+   These are computed in such way that the normalized (indicated by :math:`^*`)
+   data satisfies:
+
+   .. math::
+
+      \left<e^*_\text{ref}\right> = 0 \quad \text{and} \quad
+      \sigma_{e^*_\text{ref}} = \sigma_{F^*_\text{ref}} = 1,
+
+   i.e., the mean reference energy per atom vanishes and there is unity standard
+   deviation of reference energies per atom and forces. As the training run
+   continues all necessary quantities are automatically converted to this
+   normalized unit system.
+
+   .. important::
+
+      The three numbers (1), (2) and (3) are automatically written to the first
+      lines of ``input.nn`` as arguments of the keywords ``mean_energy``,
+      ``conv_energy`` and ``conv_length``, respectively. They are read in and
+      normalization is applied by other tools if necessary. No additional user
+      interaction is required. In particular, it is **not** required to convert
+      settings in ``input.nn`` (e.g. cutoff radii, some symmetry function
+      parameters), nor the configuration data in ``input.data``. All unit
+      conversion will be handled internally.
+
+*  ``force`` : **Normalization based on reference and predicted forces (recommended)**
+
+   Same procedure as in mode ``ref`` but the normalization with respect to
+   standard deviation of energies per atom is omitted. Instead, the standard
+   deviation of **predicted** forces is set to unity:
+
+   .. math::
+
+      \left<e^*_\text{ref}\right> = 0 \quad \text{and} \quad
+      \sigma_{F^*_\text{NNP}} = \sigma_{F^*_\text{ref}} = 1,
+
+   The prediction is carried out with the previously (randomly) initialized
+   neural network weights. Usually this normalization procedure results in a
+   very uniform distribution of data points in the initial
+   reference-vs-prediction plot of the forces (see the files
+   ``train/testforces.000000.out``). This seems to be a good starting point for
+   the HDNNP training often resulting in lower force errors than the ``ref``
+   mode.
+
 .. [1] Blank, T. B.; Brown, S. D. Adaptive, Global, Extended Kalman Filters for
    Training Feedforward Neural Networks. J. Chemom. 1994, 8 (6), 391–407.
    https://doi.org/10.1002/cem.1180080605
@@ -428,3 +595,11 @@ are written.
 .. [2] Singraber, A.; Morawietz, T.; Behler, J.; Dellago, C. Parallel
    Multistream Training of High-Dimensional Neural Network Potentials. J. Chem.
    Theory Comput. 2019, 15 (5), 3075–3092. https://doi.org/10.1021/acs.jctc.8b01092
+
+.. [3] Jackson, R. A.; Catlow, C. R. A. Computer Simulation Studies of Zeolite
+   Structure. Molecular Simulation 1988, 1 (4), 207–224.
+   https://doi.org/10.1080/08927028808080944.
+
+.. [4] Kolafa, J.; Perram, J. W. Cutoff Errors in the Ewald Summation Formulae
+   for Point Charge Systems. Molecular Simulation 1992, 9 (5), 351–368.
+   https://doi.org/10.1080/08927029208049126.

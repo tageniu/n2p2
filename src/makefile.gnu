@@ -17,7 +17,7 @@ PROJECT_BOOST=${BOOST_ROOT}
 PROJECT_CC=g++
 PROJECT_MPICC=mpic++
 # OpenMP parallelization is disabled by default, add flag "-fopenmp" to enable.
-PROJECT_CFLAGS=-O3 -pg -g -march=native -std=c++11
+PROJECT_CFLAGS=-O3 -march=native -std=c++11 #-fopenmp
 PROJECT_CFLAGS_MPI=-Wno-long-long
 PROJECT_DEBUG=-g -pedantic-errors -Wall -Wextra
 PROJECT_TEST=--coverage -fno-default-inline -fno-inline -fno-inline-small-functions -fno-elide-constructors
@@ -31,28 +31,28 @@ PROJECT_LDFLAGS_BLAS=-L${OPENBLAS_ROOT}/lib -lopenblas -L/fsc/home/singraber/loc
 ###############################################################################
 
 # Do not use symmetry function groups.
-#PROJECT_OPTIONS+= -DNNP_NO_SF_GROUPS
+#PROJECT_OPTIONS+= -DN2P2_NO_SF_GROUPS
 
 # Do not use symmetry function cache.
-#PROJECT_OPTIONS+= -DNNP_NO_SF_CACHE
+#PROJECT_OPTIONS+= -DN2P2_NO_SF_CACHE
 
 # Disable asymmetric polynomial symmetry functions.
-#PROJECT_OPTIONS+= -DNNP_NO_ASYM_POLY
+#PROJECT_OPTIONS+= -DN2P2_NO_ASYM_POLY
 
 # Build with dummy Stopwatch class.
-#PROJECT_OPTIONS+= -DNNP_NO_TIME
+#PROJECT_OPTIONS+= -DN2P2_NO_TIME
 
 # Disable check for low number of neighbors.
-#PROJECT_OPTIONS+= -DNNP_NO_NEIGH_CHECK
+#PROJECT_OPTIONS+= -DN2P2_NO_NEIGH_CHECK
 
 # Use alternative (older) memory layout for symmetry function derivatives.
-#PROJECT_OPTIONS+= -DNNP_FULL_SFD_MEMORY
+#PROJECT_OPTIONS+= -DN2P2_FULL_SFD_MEMORY
 
 # Compile without MPI support.
-#PROJECT_OPTIONS+= -DNNP_NO_MPI
+#PROJECT_OPTIONS+= -DN2P2_NO_MPI
 
 # Use BLAS together with Eigen.
-PROJECT_OPTIONS+= -DEIGEN_USE_BLAS
+#PROJECT_OPTIONS+= -DEIGEN_USE_BLAS
 
 # Disable all C++ asserts (also Eigen debugging).
 #PROJECT_OPTIONS+= -DNDEBUG

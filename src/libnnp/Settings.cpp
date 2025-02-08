@@ -22,15 +22,16 @@
 
 using namespace std;
 using namespace nnp;
+using namespace settings;
 
-map<string, shared_ptr<Settings::Key>> const createKnownKeywordsMap()
+map<string, shared_ptr<settings::Key>> const createKnownKeywordsMap()
 {
     // Main keyword names and descriptions.
     map<string, string> m;
     // Alternative names.
     map<string, vector<string>> a;
     // Complete keyword map to return.
-    map<string, shared_ptr<Settings::Key>> r;
+    map<string, shared_ptr<settings::Key>> r;
 
     // Required for prediction.
     m["number_of_elements"                 ] = "";
@@ -59,17 +60,20 @@ map<string, shared_ptr<Settings::Key>> const createKnownKeywordsMap()
     m["mean_energy"                        ] = "";
     m["conv_length"                        ] = "";
     m["conv_energy"                        ] = "";
+    m["conv_charge"                        ] = "";
     m["nnp_type"                           ] = "";
     m["fixed_gausswidth"                   ] = "";
     m["ewald_truncation_error_method"      ] = "";
     m["kspace_solver"                      ] = "";
     m["ewald_prec"                         ] = "";
     m["screen_electrostatics"              ] = "";
+    m["four_pi_epsilon"                    ] = "";
 
     // Training keywords.
     m["random_seed"                        ] = "";
     m["test_fraction"                      ] = "";
     m["epochs"                             ] = "";
+    m["normalize_data_set"                 ] = "";
     m["use_short_forces"                   ] = "";
     m["rmse_threshold"                     ] = "";
     m["rmse_threshold_energy"              ] = "";
@@ -81,6 +85,7 @@ map<string, shared_ptr<Settings::Key>> const createKnownKeywordsMap()
     m["rmse_threshold_trials_charge"       ] = "";
     m["energy_fraction"                    ] = "";
     m["force_fraction"                     ] = "";
+    m["force_energy_ratio"                 ] = "";
     m["charge_fraction"                    ] = "";
     m["use_old_weights_short"              ] = "";
     m["use_old_weights_charge"             ] = "";
@@ -144,11 +149,11 @@ map<string, shared_ptr<Settings::Key>> const createKnownKeywordsMap()
             throw runtime_error("ERROR: Multiple definition of keyword.\n");
         }
         // Insert new shared pointer to a Key object.
-        r[im.first] = make_shared<Settings::Key>();
+        r[im.first] = make_shared<settings::Key>();
         // Add main keyword as first entry in alternatives list.
-        r.at(im.first)->words.push_back(im.first);
+        r.at(im.first)->addAlternative(im.first);
         // Add description text.
-        r.at(im.first)->description = im.second;
+        r.at(im.first)->setDescription(im.second);
         // Check if alternative keywords exist.
         if (a.find(im.first) != a.end())
         {
@@ -164,7 +169,7 @@ map<string, shared_ptr<Settings::Key>> const createKnownKeywordsMap()
                 // Set map entry, i.e. shared pointer, to Key object.
                 r[alt] = r.at(im.first);
                 // Add alternative keyword to list.
-                r[alt]->words.push_back(alt);
+                r[alt]->addAlternative(alt);
             }
         }
     }
@@ -179,6 +184,7 @@ string Settings::operator[](string const& keyword) const
     return getValue(keyword);
 }
 
+
 size_t Settings::loadFile(string const& fileName)
 {
     this->fileName = fileName;
@@ -186,7 +192,11 @@ size_t Settings::loadFile(string const& fileName)
     readFile();
     return parseLines();
 }
-
+bool Settings::keywordExists(Key const& key,
+                             bool const exact) const
+{
+    return keywordExists(key.getMainKeyword(), exact);
+}
 bool Settings::keywordExists(string const& keyword, bool exact) const
 {
     if (knownKeywords.find(keyword) == knownKeywords.end())
@@ -194,13 +204,13 @@ bool Settings::keywordExists(string const& keyword, bool exact) const
         throw runtime_error("ERROR: Not in the list of allowed keyword: \"" +
                             keyword + "\".\n");
     }
-    if (exact || knownKeywords.at(keyword)->isUnique())
+    if (exact || knownKeywords.at(keyword)->hasUniqueKeyword())
     {
         return (contents.find(keyword) != contents.end());
     }
     else
     {
-        for (auto alternative : knownKeywords.at(keyword)->words)
+        for (auto alternative : *knownKeywords.at(keyword))
         {
             if (contents.find(alternative) != contents.end()) return true;
         }
@@ -212,7 +222,7 @@ bool Settings::keywordExists(string const& keyword, bool exact) const
 string Settings::keywordCheck(string const& keyword) const
 {
     bool exists = keywordExists(keyword, false);
-    bool unique = knownKeywords.at(keyword)->isUnique();
+    bool unique = knownKeywords.at(keyword)->hasUniqueKeyword();
     if (!exists)
     {
         if (unique)
@@ -230,13 +240,18 @@ string Settings::keywordCheck(string const& keyword) const
     bool exact = keywordExists(keyword, true);
     if (!exact)
     {
-        for (auto alt : knownKeywords.at(keyword)->words)
+        for (auto const& alt : *knownKeywords.at(keyword))
         {
             if (contents.find(alt) != contents.end()) return alt;
         }
     }
 
     return keyword;
+}
+
+string Settings::getValue(Key const& key) const
+{
+    return contents.find(key.getMainKeyword())->second.first;
 }
 
 string Settings::getValue(string const& keyword) const
@@ -284,17 +299,23 @@ void Settings::readFile()
     return;
 }
 
-void Settings::writeSettingsFile(ofstream* const& file) const
+void Settings::writeSettingsFile(ofstream* const&           file,
+                                 map<size_t, string> const& replacements) const
 {
     if (!file->is_open())
     {
         runtime_error("ERROR: Could not write to file.\n");
     }
 
-    for (vector<string>::const_iterator it = lines.begin();
-         it != lines.end(); ++it)
+    size_t i = 0;
+    for (auto const& l : lines)
     {
-        (*file) << (*it) << '\n';
+        if (replacements.find(i) != replacements.end())
+        {
+            (*file) << replacements.at(i);
+        }
+        else (*file) << l << '\n';
+        i++;
     }
 
     return;
@@ -411,9 +432,9 @@ pair<size_t, size_t> Settings::sanityCheck()
     for (KeywordList::const_iterator it = knownKeywords.begin();
          it != knownKeywords.end(); ++it)
     {
-        if (it->second->isUnique()) continue;
+        if (it->second->hasUniqueKeyword()) continue;
         vector<string> duplicates;
-        for (auto keyword : it->second->words)
+        for (auto keyword : *it->second)
         {
             if (contents.find(keyword) != contents.end())
             {

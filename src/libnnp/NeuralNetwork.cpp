@@ -37,7 +37,7 @@ NeuralNetwork(int                              numLayers,
     if (numLayers < 3)
     {
         fprintf(stderr,
-                "ERROR: Neural network must have at least three layers");
+                "ERROR: Neural network must have at least three layers\n");
         exit(EXIT_FAILURE);
     }
     numHiddenLayers = numLayers - 2;
@@ -358,6 +358,8 @@ void NeuralNetwork::setInput(double const* const& input) const
 {
     for (int i = 0; i < inputLayer->numNeurons; i++)
     {
+        // TODO: replace by calling setInput from above
+        // also, for 4G we need charges
         double const& value = input[i];
         Neuron& n = inputLayer->neurons[i];
         n.count++;

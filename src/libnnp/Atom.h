@@ -18,10 +18,12 @@
 #define ATOM_H
 
 #include "Vec3D.h"
-#include <cstddef> // std::size_t
-#include <map>     // std::map
-#include <string>  // std::string
-#include <vector>  // std::vector
+#include <cstddef>          // std::size_t
+#include <cstdint>          // int64_t
+#include <map>              // std::map
+#include <unordered_map>    // std::unordered_map
+#include <string>           // std::string
+#include <vector>           // std::vector
 
 namespace nnp
 {
@@ -35,14 +37,14 @@ struct Atom
         /// Index of neighbor atom.
         std::size_t                index;
         /// Tag of neighbor atom.
-        std::size_t                tag;
+        int64_t                    tag;
         /// %Element index of neighbor atom.
         std::size_t                element;
         /// Distance to neighbor atom.
         double                     d;
         /// Distance vector to neighbor atom.
         Vec3D                      dr;
-#ifndef NNP_NO_SF_CACHE
+#ifndef N2P2_NO_SF_CACHE
         /// Symmetry function cache (e.g. for cutoffs, compact functions).
         std::vector<double>        cache;
 #endif
@@ -100,7 +102,7 @@ struct Atom
     /// Index number of structure this atom belongs to.
     std::size_t              indexStructure;
     /// Tag number of this atom.
-    std::size_t              tag;
+    int64_t                  tag;
     /// %Element index of this atom.
     std::size_t              element;
     /// Total number of neighbors.
@@ -136,19 +138,20 @@ struct Atom
     std::vector<std::size_t> numNeighborsPerElement;
     /// Number of neighbor atom symmetry function derivatives per element.
     std::vector<std::size_t> numSymmetryFunctionDerivatives;
-#ifndef NNP_NO_SF_CACHE
+#ifndef N2P2_NO_SF_CACHE
     /// Cache size for each element.
     std::vector<std::size_t> cacheSizePerElement;
 #endif
     /// Symmetry function values
     std::vector<double>      G;
-    /// Derivative of atomic energy with respect to symmetry functions.
+    /// Derivative of atomic energy with respect to symmetry functions. Also
+    /// contains dEdQ in the last element if HDNNP-4G is used.
     std::vector<double>      dEdG;
     /// Derivative of atomic charge with respect to symmetry functions.
     std::vector<double>      dQdG;
     /// Derivative of electronegativity with respect to symmetry functions.
     std::vector<double>      dChidG;
-#ifdef NNP_FULL_SFD_MEMORY
+#ifdef N2P2_FULL_SFD_MEMORY
     /// Derivative of symmetry functions with respect to one specific atom
     /// coordinate.
     std::vector<double>      dGdxia;
@@ -156,22 +159,29 @@ struct Atom
     /// Derivative of symmetry functions with respect to this atom's
     /// coordinates.
     std::vector<Vec3D>       dGdr;
+    /// Derivative of charges with respect to this atom's coordinates.
+    std::vector<Vec3D>       dQdr;
+    /// If dQdr has been calculated for respective components.
+    //bool                    hasdQdr[3];
     /// Derivative of A-matrix with respect to this atom's coordinates
-    // contracted with the charges.
+    /// contracted with the charges.
     std::vector<Vec3D>       dAdrQ;
     /// Neighbor array (maximum number defined in macros.h.
     std::vector<Neighbor>    neighbors;
+    /// Map stores number of neighbors needed for the corresponding cut-off.
+    std::unordered_map<double, size_t> neighborCutoffs;
 
     /** Atom constructor, initialize to zero.
      */
     Atom();
-#ifdef NNP_FULL_SFD_MEMORY
+#ifdef N2P2_FULL_SFD_MEMORY
     /** Collect derivative of symmetry functions with repect to one atom's
      * coordinate.
      *
      * @param[in] indexAtom The index @f$i@f$ of the atom requested.
      * @param[in] indexComponent The component @f$\alpha@f$ of the atom
      *                           requested.
+     * @param[in] maxCutoffRadius Maximum symmetry function cutoff.
      *
      * This calculates an array of derivatives
      * @f[
@@ -184,41 +194,48 @@ struct Atom
      * position of atom @f$i@f$. The result is stored in #dGdxia.
      */
     void                     collectDGdxia(std::size_t indexAtom,
-                                           std::size_t indexComponent);
+                                           std::size_t indexComponent,
+                                           double maxCutoffRadius);
 #endif
-    /** Switch to normalized length and energy units.
+    /** Switch to normalized length, energy and charge units.
      *
      * @param[in] convEnergy Multiplicative energy unit conversion factor.
      * @param[in] convLength Multiplicative length unit conversion factor.
+     * @param[in] convCharge Multiplicative charge unit conversion factor.
      */
     void                     toNormalizedUnits(double convEnergy,
                                                double convLength,
                                                double convCharge);
-    /** Switch to physical length and energy units.
+    /** Switch to physical length, energy and charge units.
      *
      * @param[in] convEnergy Multiplicative energy unit conversion factor.
      * @param[in] convLength Multiplicative length unit conversion factor.
+     * @param[in] convCharge Multiplicative charge unit conversion factor.
      */
     void                     toPhysicalUnits(double convEnergy,
-                                             double convLength);
+                                             double convLength,
+                                             double convCharge);
     /** Allocate vectors related to symmetry functions (#G, #dEdG).
      *
      * @param[in] all If `true` allocate also vectors corresponding to
      *                derivatives of symmetry functions (#dEdG, #dGdr, #dGdxia
      *                and Neighbor::dGdr, neighbors must be present). If
      *                `false` allocate only #G.
+     * @param[in] maxCutoffRadius Maximum cutoff radius of symmetry functions.
      *
      * Warning: #numSymmetryFunctions and #numSymmetryFunctionDerivatives need
      * to be set first (the latter only in case of argument all == true.
      */
-    void                     allocate(bool all);
+    void                     allocate(bool         all,
+                                      double const maxCutoffRadius = 0.0);
     /** Free vectors related to symmetry functions, opposite of #allocate().
      *
      * @param[in] all If `true` free all vectors (#G, #dEdG, #dGdr, #dGdxia
      *                and Neighbor::dGdr) otherwise free only #dEdG, #dGdr,
      *                #dGdxia and Neighbor::dGdr.
+     * @param[in] maxCutoffRadius Maximum cutoff radius of symmetry functions.
      */
-    void                     free(bool all);
+    void                     free(bool all, double const maxCutoffRadius = 0.0);
     /** Clear neighbor list.
      *
      * @note Also clears symmetry function data.
@@ -242,7 +259,16 @@ struct Atom
      * for a large cutoff radius and now the number of neighbor atoms for a
      * smaller cutoff is requested.
      */
-    std::size_t              getNumNeighbors(double cutoffRadius) const;
+    std::size_t              calculateNumNeighbors(double const cutoffRadius) const;
+    /** Return needed number of neighbors for a given cutoff radius from
+     *                  neighborCutoffs map. If it isn't setup, return number
+     *                  of all neighbors in list.
+     * @param[in]   cutoffRadius Desired cutoff radius.
+     * @return Integer with the number of neighbors corresponding to the cutoff
+     *                  radius.
+     */
+    std::size_t              getStoredMinNumNeighbors(
+                                             double const cutoffRadius) const;
     /** Return whether atom is a neighbor.
      *
      * @param[in] index Index of atom in question.
@@ -260,6 +286,36 @@ struct Atom
                                    std::string const&             property,
                                    std::map<std::string, double>& error,
                                    std::size_t&                   count) const;
+    /** Calculate force resulting from gradient of this atom's
+     *  (short-ranged) energy contribution with respect to this atom's
+     *  coordinate.
+     *  @return calculated force vector.
+     */
+    Vec3D                    calculateSelfForceShort() const;
+     /** Calculate force resulting from gradient of this atom's (short-ranged)
+     *  energy contribution with respect to neighbor's coordinate.
+     *
+     * @param[in] neighbor Neighbor of which the gradient is considered.
+     * @param[in] tableFull Pointer to ymmetry function table if it is used.
+     * @return calculated force vector.
+     */
+    Vec3D                    calculatePairForceShort(
+                                    Neighbor const&  neighbor,
+                                    std::vector<std::vector <std::size_t> >
+                                    const *const     tableFull = nullptr) const;
+    /** Calculate dChi/dr of this atom's Chi with respect to the coordinates
+     *  of the given atom.
+     *
+     * @param[in] atomIndexOfR Index of the atom corresponding to the coordinates r.
+     * @param[in] maxCutoffRadius Largest cut-off of the symmetry functions.
+     * @param[in] tableFull Pointer to symmetry function table if it is used.
+     * @return 3D Vector containing the derivative dChi/dr.
+     */
+    Vec3D                    calculateDChidr(
+                                    size_t const     atomIndexOfR,
+                                    double const     maxCutoffRadius,
+                                    std::vector<std::vector<size_t> >
+                                    const *const     tableFull = nullptr) const;
     /** Get reference and NN forces for this atoms.
      *
      * @return Vector of strings with #indexStructure, #index, #fRef, #f

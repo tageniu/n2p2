@@ -44,7 +44,7 @@ LDFLAGS=$(PROJECT_LIB)/libnnp.a $(PROJECT_LIB)/libnnptrain.a $(PROJECT_LDFLAGS_B
 # DEFINE SOURCES
 ###############################################################################
 SRC=$(wildcard test_*.cpp)
-SRC_NOIF=$(filter-out test_lammps_nnp.cpp, $(SRC))
+SRC_NOIF=$(filter-out test_lammps_hdnnp.cpp, $(SRC))
 EXE=$(SRC:%.cpp=%)
 EXE_NOIF=$(SRC_NOIF:%.cpp=%)
 
@@ -53,6 +53,7 @@ EXE_NOIF=$(SRC_NOIF:%.cpp=%)
 # RULES
 ###############################################################################
 .PHONY: all no-interface coverage clean clean-coverage
+.NOTPARALLEL:
 
 all: $(EXE)
 
@@ -78,3 +79,10 @@ clean-coverage:
 	$(RM) $(PROJECT_DIR)/src/application/*.gcda
 	$(RM) *.gcda *.base *.run *.info
 	$(RM) -r htmlcov
+
+# Grep for "CI-CHECK" for code changes if you want to review output files from non-interactive CI run.
+#test_nnp-train: test_nnp-train.cpp
+#	$(CC) $(CFLAGS) $(DEBUG) $(INCLUDES) $(OPTIONS) -o $@ $< $(LDFLAGS)
+#	-./$@ --color_output=yes --log_level=$(LOG_LEVEL)
+#	cat nnp-train.log.0000.*
+#	cat learning-curve.out.*

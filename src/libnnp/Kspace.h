@@ -18,7 +18,7 @@
 #define KSPACE_H
 
 #include "Vec3D.h"
-#include "Ewald.h"
+#include "EwaldSetup.h"
 #include <vector> // std::vector
 
 namespace nnp
@@ -51,7 +51,7 @@ class KspaceGrid
 {
 public:
     /// Method for calculating the reciprocal part.
-    KSPACESolver kspaceSolver;
+    KSPACESolver         kspaceSolver;
     /// Ewald summation eta parameter.
     double               eta;
     /// Cutoff in reciprocal space.
@@ -74,15 +74,9 @@ public:
     /** Set up reciprocal box vectors and eta.
      *
      * @param[in] box Real box vectors.
-     * @param[in] precision Desired presicion for Ewald summation.
-     * @param[in] halfSphere Generate only k-vectors for half sphere.
-     * @param[in] numAtoms Number of atoms in system. Optional, if provided
-     *                     will use "regular" Ewald optimal eta, otherwise use
-     *                     "matrix" version of eta.
-     *
-     * @return Real space cutoff radius.
+     * @param[in] ewaldSetup Settings of ewald summation.
      */
-    void setup(Vec3D       box[3], EwaldSetup& ewaldSetup);
+    void setup(Vec3D box[3], EwaldSetup& ewaldSetup);
 
 private:
     /** Compute box copies in each direction.
@@ -93,17 +87,7 @@ private:
      */
     void calculatePbcCopies(double cutoffRadius);
 };
-    /** Compute Cut-off in real space for Ewald summation.
-     *
-     * @param[in] box Real box vectors.
-     * @param[in] precision Desired presicion for Ewald summation.
-     * @param[in] numAtoms Number of atoms in system. Optional, if provided
-     *                     will use "regular" Ewald optimal eta, otherwise use
-     *                     "matrix" version of eta.
-     *
-     * @return Real space cutoff radius.
-     */
-    //double getRcutReal(Vec3D box[3], double precision, size_t numAtoms = 0);
+
 }
 
 #endif

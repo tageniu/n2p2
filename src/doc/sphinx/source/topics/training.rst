@@ -40,6 +40,12 @@ your system.
 
 Step 3 (**optional**): Data set normalization
 """""""""""""""""""""""""""""""""""""""""""""
+.. note::
+
+   This step is usually not necessary any more because data set normalization is
+   handled on-the-fly during training with the keyword
+   :ref:`normalize_data_set`.
+
 As explained :ref:`here <units>` it may be useful to ensure that training is
 independent of the chosen unit system. With ``input.nn`` and ``input.data``
 present run the tool :ref:`nnp-norm` which implements a normalization procedure
@@ -56,6 +62,8 @@ Whenever the data set is changed, do not forget to repeat this step.
    radii, some symmetry function parameters) need to be converted manually. Any
    unit conversion will be handled internally and no user intervention is
    necessary.
+
+.. _symfunc_setup:
 
 Step 4: Symmetry function setup
 """""""""""""""""""""""""""""""
@@ -106,8 +114,7 @@ Try the potential by predicting energies and forces for a new configuration:
 Collect the files from training (``input.nn``, ``scaling.data`` and
 ``weights.???``) in a folder together with a single configuration (named again
 ``input.data``) and run the tool ``nnp-predict``. Alternatively, try to run a MD
-simulation with LAMMPS (see setup instructions :ref:`here <if_lammps>` and
-:ref:`here <pair_nnp>`).
+simulation with LAMMPS (see setup instructions :ref:`here <if_lammps>`).
 
 Please also have a look at the ``examples`` directory which provides working
 example setups for each tool. If there are problems don't hesitate to ask

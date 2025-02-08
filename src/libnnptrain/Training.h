@@ -138,9 +138,16 @@ public:
      * @param[in] stage Training stage to set.
      */
     void                  setStage(std::size_t stage);
+    /** Apply normalization based on initial weights prediction.
+     */
+    void                  dataSetNormalization();
     /** General training settings and setup of weight update routine.
      */
     void                  setupTraining();
+    /** Set up numeric weight derivatives check.
+     */
+    std::vector<
+    std::string>          setupNumericDerivCheck();
     /** Calculate neighbor lists for all structures.
      */
     void                  calculateNeighborLists();
@@ -161,6 +168,15 @@ public:
      * Also write training curve to file.
      */
     void                  calculateErrorEpoch();
+    /** Calculate vector of charge errors in one structure.
+     *
+     * @param[in] s Structure of interest.
+     * @param[in] cVec Vector to store result of charge errors.
+     * @param[in] cNorm Euclidean norm of the error vector.
+     */
+    void                  calculateChargeErrorVec( Structure const &s,
+                                                   Eigen::VectorXd &cVec,
+                                                   double          &cNorm);
     /** Print training loop header on screen.
      */
     void                  printHeader();
@@ -178,6 +194,16 @@ public:
     /** Write weights to files during training loop.
      */
     void                  writeWeightsEpoch() const;
+    /** Write hardness to files (one file for each element).
+     *
+     * @param[in] fileNameFormat String with file name format.
+     */
+    void                  writeHardness(
+                                      std::string const& fileNameFormat) const;
+    /** Write hardness to files during training loop.
+     */
+    void                  writeHardnessEpoch() const;
+
     /** Write current RMSEs and epoch information to file.
      *
      * @param[in] append If true, append to file, otherwise create new file.
@@ -287,19 +313,87 @@ public:
      * @param[in] fileName File name for training log.
      */
     void                  setTrainingLogFileName(std::string fileName);
+    /** Get total number of NN connections.
+     *
+     * @param[in] id NN ID to use (e.g. "short").
+     *
+     * @return Sum of all NN weights + biases for all elements
+     */
+    std::size_t           getNumConnections(std::string id = "short") const;
+    /** Get number of NN connections for each element.
+     *
+     * @param[in] id NN ID to use (e.g. "short").
+     *
+     * @return Vector containing number of connections for each element.
+     */
+    std::vector<
+    std::size_t>          getNumConnectionsPerElement(
+                                               std::string id = "short") const;
+    /** Get offsets of NN connections for each element.
+     *
+     * @param[in] id NN ID to use (e.g. "short").
+     *
+     * @return Vector containing offsets for each element.
+     */
+    std::vector<
+    std::size_t>          getConnectionOffsets(std::string id = "short") const;
+    /** Compute derivatives of property with respect to weights.
+     *
+     * @param[in] property Training property for which derivatives should be
+     *                     computed.
+     * @param[in] structure The structure under investigation.
+     * @param[inout] dEdc Weight derivative array (first index = property,
+     *                    second index = weight).
+     */
+    void                  dPdc(std::string                       property,
+                               Structure&                        structure,
+                               std::vector<std::vector<double>>& dEdc);
+    /** Compute numeric derivatives of property with respect to weights.
+     *
+     * @param[in] property Training property for which derivatives should be
+     *                     computed.
+     * @param[in] structure The structure under investigation.
+     * @param[inout] dEdc Weight derivative array (first index = property,
+     *                    second index = weight).
+     * @param[in] delta Delta for central difference.
+     */
+    void                  dPdcN(
+                             std::string                       property,
+                             Structure&                        structure,
+                             std::vector<std::vector<double>>& dEdc,
+                             double                            delta = 1.0E-4);
 
 private:
-    /// Contains location of one update candidate (energy or force).
-    struct UpdateCandidate
+    /// Contains update candidate which is grouped with others to specific
+    /// parent update candidate (e.g. forces belonging to same structure).
+    struct SubCandidate
     {
-        /// Structure index.
-        std::size_t s;
         /// Atom index (only used for force candidates).
         std::size_t a;
         /// Component index (x,y,z -> 0,1,2, only used for force candidates).
         std::size_t c;
         /// Absolute value of error with respect to reference value.
+        double error;
+
+        /// Overload < operator to sort in \em descending order.
+        bool operator<(SubCandidate const& rhs) const {
+            return this->error > rhs.error;
+        }
+    };
+    /// Contains location of one update candidate (energy or force).
+    struct UpdateCandidate
+    {
+        /// Structure index.
+        std::size_t s;
+        /// Absolute value of error with respect to reference value (in case of
+        /// subcandidates, average is taken)
         double      error;
+        /// Current position in sub-candidate list (SM_SORT/_THRESHOLD).
+        std::size_t                  posSubCandidates;
+
+        /// Vector containing grouped candidates. If no grouping intended,
+        /// vector will contain only single entry.
+        std::vector<SubCandidate> subCandidates;
 
         /// Overload < operator to sort in \em descending order.
         bool operator<(UpdateCandidate const& rhs) const {
@@ -333,8 +427,14 @@ private:
         std::size_t                  writeCompEvery;
         /// Up to this epoch comparison is written every epoch.
         std::size_t                  writeCompAlways;
-        /// Current position in update candidate list (SM_SORT).
+        /// Current position in update candidate list (SM_SORT/_THRESHOLD).
         std::size_t                  posUpdateCandidates;
+        /// Number of subcandidates which are considered before changing the
+        /// update candidate.
+        std::size_t                  numGroupedSubCand;
+        /// Counter for number of used subcandidates belonging to same update
+        /// candidate.
+        std::size_t                  countGroupedSubCand;
         /// Maximum trials for SM_THRESHOLD selection mode.
         std::size_t                  rmseThresholdTrials;
         /// Counter for updates per epoch.
@@ -437,7 +537,8 @@ private:
     std::size_t              writeNeuronStatisticsAlways;
     /// Update counter (for all training quantities together).
     std::size_t              countUpdates;
-    /// Total number of weights.
+    /// Total number of weights. If nnpType 4G also h = sqrt(J) (hardness) is
+    /// counted.
     std::size_t              numWeights;
     /// Force update weight.
     double                   forceWeight;
@@ -447,20 +548,24 @@ private:
     std::string              nnId;
     /// Training log file.
     std::ofstream            trainingLog;
-    /// Update schedule epoch (false = energy update, true = force update).
+    /// Update schedule epoch (stage 1: 0 = charge update; 
+    ///                        stage 2: 0 = energy update, 1 = force update (optional)).
     std::vector<int>         epochSchedule;
-    /// Number of weights per updater.
+    /// Number of weights per updater. If nnpType 4G also h = sqrt(J) is 
+    /// counted during stage 1 training.
     std::vector<std::size_t> numWeightsPerUpdater;
-    /// Offset of each element's weights in combined array.
+    /// Offset of each element's weights in combined array. If nnpType 4G also 
+    /// h = sqrt(J) is counted.
     std::vector<std::size_t> weightsOffset;
     /// Vector of actually used training properties.
     std::vector<std::string> pk;
-#ifndef NNP_FULL_SFD_MEMORY
+#ifndef N2P2_FULL_SFD_MEMORY
     /// Derivative of symmetry functions with respect to one specific atom
     /// coordinate.
     std::vector<double>      dGdxia;
 #endif
-    /// Neural network weights and biases for each element.
+    /// Neural network weights and biases for each element. If nnpType 4G also
+    ///  h = sqrt(J) included.
     std::vector<
     std::vector<double> >    weights;
     /// Weight updater (combined or for each element).
@@ -532,8 +637,8 @@ private:
                              std::size_t isg,
                              std::size_t is,
                              std::size_t ia);
-#ifndef NNP_FULL_SFD_MEMORY
-    /** Collect derivative of symmetry functions with repect to one atom's
+#ifndef N2P2_FULL_SFD_MEMORY
+    /** Collect derivative of symmetry functions with respect to one atom's
      * coordinate.
      *
      * @param[in] atom The atom which owns the symmetry functions.

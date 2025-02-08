@@ -66,47 +66,13 @@ void Prediction::readStructureFromFile(string const& fileName)
 
 void Prediction::predict()
 {
-    // TODO: Maybe we can simply overwrite maxCutoffRadius? Not sure.
-    double maxCutoffRadiusOverall = maxCutoffRadius;
-    // TODO: Is this the right case distinction?
-    if (nnpType == NNPType::HDNNP_4G)
-    {
-        maxCutoffRadiusOverall = structure.getMaxCutoffRadiusOverall(
-                                                ewaldSetup,
-                                                screeningFunction.getOuter(),
-                                                maxCutoffRadius);
-    }	
-    // TODO: For the moment sort neighbors only for 4G-HDNNPs
-    // CI tests because of small numeric changes).
-    Stopwatch sw;
-    sw.start();
-    structure.calculateNeighborList(maxCutoffRadiusOverall,
-                                    nnpType == NNPType::HDNNP_4G); 
-     sw.stop();
-     // fixing cutoff for testing at the moment
-#ifdef NNP_NO_SF_GROUPS
-    calculateSymmetryFunctions(structure, true);
-#else
-    calculateSymmetryFunctionGroups(structure, true);
-#endif
-    calculateAtomicNeuralNetworks(structure, true);
-    if (nnpType == NNPType::HDNNP_4G)
-    {
-        chargeEquilibration(structure);
-        calculateAtomicNeuralNetworks(structure, true, "short");
-    }
-    calculateEnergy(structure);
-    if (nnpType == NNPType::HDNNP_4G ||
-        nnpType == NNPType::HDNNP_Q) calculateCharge(structure);
-    calculateForces(structure);
+    evaluateNNP(structure);
     if (normalize)
     {
-        structure.toPhysicalUnits(meanEnergy, convEnergy, convLength);
+        structure.toPhysicalUnits(meanEnergy, convEnergy, convLength, convCharge);
     }
     addEnergyOffset(structure, false);
     addEnergyOffset(structure, true);
-
-    log << strpr("TIMING NeighList only: %.2f seconds.\n", sw.getTotal());
 
     return;
 }

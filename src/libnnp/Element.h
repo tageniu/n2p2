@@ -39,7 +39,7 @@ class Element
 {
 public:
 
-#ifndef NNP_NO_SF_CACHE
+#ifndef N2P2_NO_SF_CACHE
     /// List of symmetry functions corresponding to one cache identifier.
     struct SFCacheList
     {
@@ -63,6 +63,9 @@ public:
      * Necessary because of #symmetryFunctions vector of pointers.
      */
     virtual ~Element();
+    /** Clear all symmetry functions and groups.
+     */
+    void                     clearSymmetryFunctions();
     /** Set #atomicEnergyOffset.
      */
     void                     setAtomicEnergyOffset(double atomicEnergyOffset);
@@ -172,6 +175,11 @@ public:
      * @return Maximum cutoff radius.
      */
     double                   getMaxCutoffRadius() const;
+    /** Get all different cutoff radii belonging to this element.
+     *
+     * @param[in] cutoffs Vector to append the result.
+     */
+    void                    getCutoffRadii(std::vector<double>& cutoffs) const;
     /** Get number of relevant symmetry functions per element.
      *
      * @return #symmetryFunctionNumTable
@@ -219,7 +227,7 @@ public:
      * @return Symmetry function object.
      */
     SymFnc const&            getSymmetryFunction(std::size_t index) const;
-#ifndef NNP_NO_SF_CACHE
+#ifndef N2P2_NO_SF_CACHE
     /** Set cache indices for all symmetry functions of this element.
      *
      * @param[in] cacheLists List of cache identifier strings and corresponding
@@ -259,7 +267,7 @@ protected:
     std::vector<std::size_t>              symmetryFunctionNumTable;
     /// List of symmetry function indices relevant for each neighbor element.
     std::vector<std::vector<std::size_t>> symmetryFunctionTable;
-#ifndef NNP_NO_SF_CACHE
+#ifndef N2P2_NO_SF_CACHE
     /// Symmetry function cache lists.
     std::vector<std::vector<SFCacheList>> cacheLists;
 #endif

@@ -19,9 +19,10 @@
 
 #include "CutoffFunction.h"
 #include "Element.h"
-#include "Ewald.h"
-#include "Kspace.h"
 #include "ElementMap.h"
+#include "ErfcBuf.h"
+#include "EwaldSetup.h"
+#include "Kspace.h"
 #include "Log.h"
 #include "ScreeningFunction.h"
 #include "Settings.h"
@@ -115,20 +116,25 @@ public:
     /** Combine multiple setup routines and provide a basic NNP setup.
      *
      * @param[in] nnpDir Optional directory where NNP files reside.
-     * @param[in] training Signalizes that this is a setup for training.
+     * @param[in] skipNormalize Whether to skip normalization setup.
+     * @param[in] initialHardness Signalizes to use initial hardness in NN
+     *                  settings.
      *
      * Sets up elements, symmetry functions, symmetry function groups, neural
      * networks. No symmetry function scaling data is read, no weights are set.
      */
     void                     setupGeneric(std::string const& nnpDir = "",
-                                          bool               training = false);
+                                          bool               skipNormalize = false,
+                                          bool               initialHardness = false);
     /** Set up normalization.
+     *
+     * @param[in] standalone Whether to write section header and footer.
      *
      * If the keywords `mean_energy`, `conv_length` and
      * `conv_length` are present, the provided conversion factors are used to
      * internally use a different unit system.
      */
-    void                     setupNormalization();
+    void                     setupNormalization(bool standalone = true);
     /** Set up the element map.
      *
      * Uses keyword `elements`. This function should follow immediately after
@@ -180,7 +186,7 @@ public:
      * ensure that correct scaling behavior has already been set.
      */
     virtual void             setupSymmetryFunctionGroups();
-#ifndef NNP_NO_SF_CACHE
+#ifndef N2P2_NO_SF_CACHE
     /** Set up symmetry function cache.
      *
      * @param[in] verbose If true, print more cache information.
@@ -217,6 +223,9 @@ public:
                                              bool collectExtrapolationWarnings,
                                              bool writeExtrapolationWarnings,
                                              bool stopOnExtrapolationWarnings);
+    /** Setup matrix storing all symmetry function cut-offs for each element.
+     */
+    void                     setupCutoffMatrix();
     /** Set up neural networks for all elements.
      *
      * Uses keywords `global_hidden_layers_short`, `global_nodes_short`,
@@ -304,18 +313,18 @@ public:
     void                     calculateSymmetryFunctionGroups(
                                                        Structure& structure,
                                                        bool const derivatives);
-    /** Calculate a single atomic neural network for a given atom and nn type.
-     *
-     * @param[in] nnId Neural network identifier, e.g. "short", "charge".
-     * @param[in] atom Input atom.
-     * @param[in] derivatives If `true` calculate also derivatives of neural
-     *                        networks with respect to input layer neurons
-     *                        (required for force calculation).
-     *
-     * The atomic energy and charge is stored in Atom::energy and Atom::charge,
-     * respectively. If derivatives are calculated the results are stored in
-     * Atom::dEdG or Atom::dQdG.
-     */
+    // /** Calculate a single atomic neural network for a given atom and nn type.
+    // *
+    // * @param[in] nnId Neural network identifier, e.g. "short", "charge".
+    // * @param[in] atom Input atom.
+    // * @param[in] derivatives If `true` calculate also derivatives of neural
+    // *                        networks with respect to input layer neurons
+    // *                        (required for force calculation).
+    // *
+    // * The atomic energy and charge is stored in Atom::energy and Atom::charge,
+    // * respectively. If derivatives are calculated the results are stored in
+    // * Atom::dEdG or Atom::dQdG.
+    // */
     //void                     calculateAtomicNeuralNetwork(
     //                                           std::string const& nnId,
     //                                           Atom&              atom,
@@ -327,17 +336,22 @@ public:
      *                        networks with respect to input layer neurons
      *                        (required for force calculation).
      * @param[in] id Neural network ID to use. If empty, the first entry
-     *               nnk.front() is used.
+     *                        nnk.front() is used.
      */
     void                     calculateAtomicNeuralNetworks(
-                                                       Structure&  structure,
-                                                       bool const  derivatives,
-                                                       std::string id = "");
+                                           Structure&  structure,
+                                           bool const  derivatives,
+                                           std::string id = "");
     /** Perform global charge equilibration method.
      *
      * @param[in] structure Input structure.
+     * @param[in] derivativesElec Turn on/off calculation of dElecdQ and
+     *                          pElecpr (Typically needed for elecstrosttic
+     *                          forces).
      */
-    void                     chargeEquilibration(Structure& structure);
+    void                     chargeEquilibration(
+                                                Structure& structure,
+                                                bool const derivativesElec);
     /** Calculate potential energy for a given structure.
      *
      * @param[in] structure Input structure.
@@ -362,6 +376,15 @@ public:
      * computation to atomic forces. Results are stored in Atom::f.
      */
     void                     calculateForces(Structure& structure) const;
+    /** Evaluate neural network potential (includes total energy, optionally
+     *  forces and in some cases charges.
+     *  @param[in] structure Input structure.
+     *  @param[in] useForces If true, calculate forces too.
+     *  @param[in] useDEdG If true, calculate dE/dG too.
+     */
+    void                     evaluateNNP(Structure& structure,
+                                         bool useForces = true,
+                                         bool useDEdG = true);
     /** Add atomic energy offsets to reference energy.
      *
      * @param[in] structure Input structure.
@@ -400,7 +423,8 @@ public:
                                             bool             ref = true) const;
     /** Apply normalization to given property.
      *
-     * @param[in] property One of "energy", "force".
+     * @param[in] property One of "energy", "force", "charge", "hardness"
+     *                     "negativity".
      * @param[in] value Input property value in physical units.
      *
      * @return Property in normalized units.
@@ -419,7 +443,8 @@ public:
                                             bool             ref = true) const;
     /** Undo normalization for a given property.
      *
-     * @param[in] property One of "energy", "force".
+     * @param[in] property One of "energy", "force", "charge", "hardness",
+     *                     "negativity".
      * @param[in] value Input property value in normalized units.
      *
      * @return Property in physical units.
@@ -447,6 +472,10 @@ public:
      */
     void                     convertToPhysicalUnits(
                                                    Structure& structure) const;
+    /** Logs Ewald params whenever they change.
+     *
+     */
+    void                     logEwaldCutoffs();
     /** Count total number of extrapolation warnings encountered for all
      * elements and symmetry functions.
      *
@@ -458,9 +487,9 @@ public:
     void                     resetExtrapolationWarnings();
     /** Getter for Mode::nnpType.
      *
-     * @return NNP type.
+     * @return HDNNP type (2G, 4G,..) that was set up.
      */
-    NNPType               getNnpType() const;
+    NNPType                  getNnpType() const;
     /** Getter for Mode::meanEnergy.
      *
      * @return Mean energy per atom.
@@ -476,6 +505,11 @@ public:
      * @return Length unit conversion factor.
      */
     double                   getConvLength() const;
+    /** Getter for Mode::convCharge.
+     *
+     * @return Charge unit conversion factor.
+     */
+    double                   getConvCharge() const;
     /** Getter for Mode::ewaldSetup.precision.
      *
      * @return Ewald precision in 4G-HDNNPs.
@@ -505,7 +539,7 @@ public:
      * @return K-space solver to be used in 4G-HDNNPs.
      *
      */
-    KSPACESolver         kspaceSolver() const;
+    KSPACESolver             kspaceSolver() const;
     /** Getter for Mode::maxCutoffRadius.
      *
      * @return Maximum cutoff radius of all symmetry functions.
@@ -626,6 +660,7 @@ protected:
         std::vector<Topology> topology;
     };
 
+
     NNPType                    nnpType;
     bool                       normalize;
     bool                       checkExtrapolationWarnings;
@@ -638,9 +673,10 @@ protected:
     double                     convEnergy;
     double                     convLength;
     double                     convCharge;
+    double                     fourPiEps;
     EwaldSetup                 ewaldSetup;
     KspaceGrid                 kspaceGrid;
-    Settings                   settings;
+    settings::Settings         settings;
     SymFnc::ScalingType        scalingType;
     CutoffFunction::CutoffType cutoffType;
     ScreeningFunction          screeningFunction;
@@ -648,6 +684,10 @@ protected:
     std::vector<std::string>   nnk;
     std::map<
     std::string, NNSetup>      nns;
+    /// Matrix storing all symmetry function cut-offs for all elements.
+    std::vector<
+    std::vector<double>>       cutoffs;
+    ErfcBuf                    erfcBuf;
 
     /** Read in weights for a specific type of neural network.
      *
@@ -662,13 +702,14 @@ protected:
 // Inlined function definitions //
 //////////////////////////////////
 
-inline double Mode::getMeanEnergy() const
-{
-    return meanEnergy;
-}
 inline Mode::NNPType Mode::getNnpType() const
 {
     return nnpType;
+}
+
+inline double Mode::getMeanEnergy() const
+{
+    return meanEnergy;
 }
 
 inline double Mode::getConvEnergy() const
@@ -681,44 +722,19 @@ inline double Mode::getConvLength() const
     return convLength;
 }
 
+inline double Mode::getConvCharge() const
+{
+    return convCharge;
+}
+
 inline double Mode::getMaxCutoffRadius() const
 {
     return maxCutoffRadius;
 }
 
-inline double Mode::getEwaldPrecision() const
-{
-    return ewaldSetup.precision;
-}
-
-inline double Mode::getEwaldMaxCharge() const
-{
-    return ewaldSetup.maxCharge;
-}
-
-inline double Mode::getEwaldMaxSigma() const
-{
-    return ewaldSetup.maxQsigma;
-}
-
-inline EWALDTruncMethod Mode::getEwaldTruncationMethod() const
-{
-    return ewaldSetup.truncMethod;
-}
-
-inline KSPACESolver Mode::kspaceSolver() const
-{
-    return kspaceGrid.kspaceSolver;
-}
-
 inline std::size_t Mode::getNumElements() const
 {
     return numElements;
-}
-
-inline ScreeningFunction Mode::getScreeningFunction() const
-{
-    return screeningFunction;
 }
 
 inline bool Mode::useNormalization() const

@@ -42,14 +42,21 @@ INTERFACES=LAMMPS CabanaMD
 ###############################################################################
 # APPLICATION TARGET NAMES
 ###############################################################################
+
+# Variables should not contain "entering directory...", so we temporarily
+# disable it
+MAKEFLAGS_ORIGINAL:=$(MAKEFLAGS)
+MAKEFLAGS += --no-print-directory
+
 # Call makefile in "application" directory to list targets.
-APP_CORE=$(shell cd application && make list-core)
-APP_TRAIN=$(shell cd application && make list-train)
-APP=$(shell cd application && make list-all)
+APP_LIBNNP:=$(shell cd application && $(MAKE) $(MFLAGS) list-libnnp)
+APP_LIBNNPTRAIN:=$(shell cd application && $(MAKE) $(MFLAGS) list-libnnptrain)
+APP:=$(shell cd application && $(MAKE) $(MFLAGS) list-all)
 
 # Targets for cleaning.
 CLEAN_APP=$(patsubst %, clean-%, $(APP))
 
+MAKEFLAGS:=$(MAKEFLAGS_ORIGINAL)
 
 ###############################################################################
 # RULES
@@ -61,7 +68,7 @@ CLEAN_APP=$(patsubst %, clean-%, $(APP))
 	libnnp \
 	libnnptrain \
 	libnnpif \
-	lammps-nnp \
+	lammps-hdnnp \
 	pynnp \
 	clean-doc \
 	clean-doc-sphinx \
@@ -70,7 +77,7 @@ CLEAN_APP=$(patsubst %, clean-%, $(APP))
 	clean-libnnp \
 	clean-libnnptrain \
 	clean-libnnpif \
-	clean-lammps-nnp \
+	clean-lammps-hdnnp \
 	clean-pynnp \
 	install \
 	uninstall
@@ -84,7 +91,7 @@ clean: clean-libnnp \
        clean-libnnptrain \
        clean-libnnpif \
        clean-app \
-       clean-lammps-nnp \
+       clean-lammps-hdnnp \
        clean-pynnp
 
 clean-all: clean \
@@ -150,24 +157,48 @@ clean-app:
 	cd application && $(MAKE) clean
 
 # Individual applications.
-$(APP_CORE): libnnp
+$(APP_LIBNNP): libnnp
 	cd application && $(MAKE) $@ COMP=$(COMP) MODE=$(MODE)
 
-$(APP_TRAIN): libnnptrain
+$(APP_LIBNNPTRAIN): libnnptrain
 	cd application && $(MAKE) $@ COMP=$(COMP) MODE=$(MODE)
 
 $(CLEAN_APP):
 	cd application && $(MAKE) $@
 
-##############
-# lammps-nnp #
-##############
-lammps-nnp: libnnpif
-	cd interface && $(MAKE) $@ COMP=$(COMP) MODE=$(MODE)
+################
+# lammps-hdnnp #
+################
+define LAMMPS_NNP_WARNING
+##############################################################
+#           __      ___   ___ _  _ ___ _  _  ___             #
+#           \ \    / /_\ | _ \ \| |_ _| \| |/ __|            #
+#            \ \/\/ / _ \|   / .` || || .` | (_ |            #
+#             \_/\_/_/ \_\_|_\_|\_|___|_|\_|\___|            #
+#                                                            #
+# WARNING: This is a development build of LAMMPS + n2p2!     #
+#                                                            #
+# n2p2's makefile feature to build an automatically patched  #
+# version of LAMMPS is designed for development purposes and #
+# not guarantueed to work. The recommended way to build and  #
+# link LAMMPS with n2p2 is based on the build system of      #
+# LAMMPS and described here:                                 #
+#                                                            #
+# https://docs.lammps.org/Build_extras.html#ml-hdnnp         #
+#                                                            #
+##############################################################
+endef
 
-clean-lammps-nnp:
+export LAMMPS_NNP_WARNING
+lammps-hdnnp: libnnpif
+	@echo "$$LAMMPS_NNP_WARNING"
+	cd libnnpif && $(MAKE) lammps-mf
+	cd interface && $(MAKE) $@ COMP=$(COMP) MODE=$(MODE)
+	@echo "$$LAMMPS_NNP_WARNING"
+
+clean-lammps-hdnnp:
 	#cd interface && $(MAKE) $@
-	cd interface && $(MAKE) clean-lammps-nnp-keep-file
+	cd interface && $(MAKE) clean-lammps-hdnnp-keep-file
 
 #########
 # pynnp #
