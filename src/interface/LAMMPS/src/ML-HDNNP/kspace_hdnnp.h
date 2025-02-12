@@ -50,7 +50,7 @@ typedef double FFT_SCALAR;
 namespace LAMMPS_NS {
 
     class KSpaceHDNNP : public KSpace {
-        friend class PairHDNNP;
+        friend class PairHDNNP4G;
         friend class FixHDNNP;
     public:
         KSpaceHDNNP(class LAMMPS *);
@@ -67,7 +67,7 @@ namespace LAMMPS_NS {
 
     protected:
 
-        class PairHDNNP *hdnnp; // interface to HDNNP pair_style
+        class PairHDNNP4G *hdnnp; // interface to HDNNP pair_style
 
         int ewaldflag,pppmflag;
 

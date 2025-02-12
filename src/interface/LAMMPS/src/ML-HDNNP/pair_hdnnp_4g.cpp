@@ -1,8 +1,23 @@
-// Copyright 2018 Andreas Singraber (University of Vienna)
-//
-// This Source Code Form is subject to the terms of the Mozilla Public
-// License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+/* -*- c++ -*- ----------------------------------------------------------
+   LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
+   https://www.lammps.org/ Sandia National Laboratories
+   LAMMPS development team: developers@lammps.org
+
+   Copyright (2003) Sandia Corporation.  Under the terms of Contract
+   DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
+   certain rights in this software.  This software is distributed under
+   the GNU General Public License.
+
+   This file initially came from n2p2 (https://github.com/CompPhysVienna/n2p2)
+   Copyright (2018) Andreas Singraber (University of Vienna)
+
+   See the README file in the top-level LAMMPS directory.
+------------------------------------------------------------------------- */
+
+/* ----------------------------------------------------------------------
+   Contributing authors: Emir Kocer
+                         Andreas Singraber
+------------------------------------------------------------------------- */
 
 #include <mpi.h>
 #include <iostream>
@@ -10,7 +25,7 @@
 #include <string.h>
 #include <stdlib.h>  //exit(0);
 #include <vector>
-#include "pair_nnp.h"
+#include "pair_hdnnp_4g.h"
 #include "atom.h"
 #include "comm.h"
 #include "force.h"
@@ -36,7 +51,7 @@ using namespace std;
 
 /* ---------------------------------------------------------------------- */
 
-PairNNP::PairNNP(LAMMPS *lmp) : Pair(lmp),
+PairHDNNP4G::PairHDNNP4G(LAMMPS *lmp) : Pair(lmp),
     kspacennp                      (nullptr),
     periodic                       (false  ),
     showew                         (false  ),
@@ -96,11 +111,11 @@ PairNNP::PairNNP(LAMMPS *lmp) : Pair(lmp),
    check if allocated, since class can be destructed when incomplete
 ------------------------------------------------------------------------- */
 
-PairNNP::~PairNNP()
+PairHDNNP4G::~PairHDNNP4G()
 {
 }
 
-void PairNNP::compute(int eflag, int vflag)
+void PairHDNNP4G::compute(int eflag, int vflag)
 {
   if(eflag || vflag) ev_setup(eflag,vflag);
   else evflag = vflag_fdotr = eflag_global = eflag_atom = 0;
@@ -175,10 +190,10 @@ void PairNNP::compute(int eflag, int vflag)
       MPI_Allreduce(xy_loc,xy,atom->natoms,MPI_DOUBLE,MPI_SUM,world);
       MPI_Allreduce(xz_loc,xz,atom->natoms,MPI_DOUBLE,MPI_SUM,world);
 
-      //TODO: it did not work when they were in the constructor as they are in FixNNP, check
+      //TODO: it did not work when they were in the constructor as they are in FixHDNNP, check
       if (periodic){
           kspacennp = nullptr;
-          kspacennp = (KSpaceNNP *) force->kspace_match("^nnp",0);
+          kspacennp = (KSpaceHDNNP *) force->kspace_match("^nnp",0);
       }
 
       // Calculates and stores k-space terms for speedup
@@ -230,7 +245,7 @@ void PairNNP::compute(int eflag, int vflag)
    global settings
 ------------------------------------------------------------------------- */
 
-void PairNNP::settings(int narg, char **arg)
+void PairHDNNP4G::settings(int narg, char **arg)
 {
   int iarg = 0;
 
@@ -325,7 +340,7 @@ void PairNNP::settings(int narg, char **arg)
    set coeffs for one or more type pairs
 ------------------------------------------------------------------------- */
 
-void PairNNP::coeff(int narg, char **arg)
+void PairHDNNP4G::coeff(int narg, char **arg)
 {
   if (!allocated) allocate();
 
@@ -354,7 +369,7 @@ void PairNNP::coeff(int narg, char **arg)
    init specific to this pair style
 ------------------------------------------------------------------------- */
 
-void PairNNP::init_style()
+void PairHDNNP4G::init_style()
 {
   int irequest = neighbor->request((void *) this);
   neighbor->requests[irequest]->pair = 1;
@@ -400,7 +415,7 @@ void PairNNP::init_style()
    init neighbor list(TODO: check this)
 ------------------------------------------------------------------------- */
 
-void PairNNP::init_list(int /*id*/, NeighList *ptr)
+void PairHDNNP4G::init_list(int /*id*/, NeighList *ptr)
 {
     list = ptr;
 }
@@ -409,7 +424,7 @@ void PairNNP::init_list(int /*id*/, NeighList *ptr)
    init for one type pair i,j and corresponding j,i
 ------------------------------------------------------------------------- */
 
-double PairNNP::init_one(int i, int j)
+double PairHDNNP4G::init_one(int i, int j)
 {
   // TODO: Check how this actually works for different cutoffs.
   return maxCutoffRadius;
@@ -419,7 +434,7 @@ double PairNNP::init_one(int i, int j)
    proc 0 writes to restart file
 ------------------------------------------------------------------------- */
 
-void PairNNP::write_restart(FILE *fp)
+void PairHDNNP4G::write_restart(FILE *fp)
 {
     return;
 }
@@ -428,7 +443,7 @@ void PairNNP::write_restart(FILE *fp)
    proc 0 reads from restart file, bcasts
 ------------------------------------------------------------------------- */
 
-void PairNNP::read_restart(FILE *fp)
+void PairHDNNP4G::read_restart(FILE *fp)
 {
     return;
 }
@@ -437,7 +452,7 @@ void PairNNP::read_restart(FILE *fp)
    proc 0 writes to restart file
 ------------------------------------------------------------------------- */
 
-void PairNNP::write_restart_settings(FILE *fp)
+void PairHDNNP4G::write_restart_settings(FILE *fp)
 {
     return;
 }
@@ -446,7 +461,7 @@ void PairNNP::write_restart_settings(FILE *fp)
    proc 0 reads from restart file, bcasts
 ------------------------------------------------------------------------- */
 
-void PairNNP::read_restart_settings(FILE *fp)
+void PairHDNNP4G::read_restart_settings(FILE *fp)
 {
     return;
 }
@@ -455,7 +470,7 @@ void PairNNP::read_restart_settings(FILE *fp)
    allocate all arrays
 ------------------------------------------------------------------------- */
 
-void PairNNP::allocate()
+void PairHDNNP4G::allocate()
 {
   allocated = 1;
   int n = atom->ntypes;
@@ -517,7 +532,7 @@ void PairNNP::allocate()
 }
 
 // Transfers neighbor lists to n2p2
-void PairNNP::transferNeighborList()
+void PairHDNNP4G::transferNeighborList()
 {
   // Transfer neighbor list to NNP.
   double rc2 = maxCutoffRadius * maxCutoffRadius;
@@ -537,7 +552,7 @@ void PairNNP::transferNeighborList()
   }
 }
 
-void PairNNP::handleExtrapolationWarnings()
+void PairHDNNP4G::handleExtrapolationWarnings()
 {
   // Get number of extrapolation warnings for local atoms.
   // TODO: Is the conversion from std::size_t to long ok?
@@ -629,7 +644,7 @@ void PairNNP::handleExtrapolationWarnings()
 }
 
 // Write atomic charges into n2p2
-void PairNNP::transferCharges()
+void PairHDNNP4G::transferCharges()
 {
     for (int i = 0; i < atom->nlocal; ++i) {
         interface.addCharge(i,atom->q[i]);
@@ -637,7 +652,7 @@ void PairNNP::transferCharges()
 }
 
 // forceLambda function
-double PairNNP::forceLambda_f(const gsl_vector *v)
+double PairHDNNP4G::forceLambda_f(const gsl_vector *v)
 {
     int i,j,jmap;
     int *type = atom->type;
@@ -734,13 +749,13 @@ double PairNNP::forceLambda_f(const gsl_vector *v)
 }
 
 // forceLambda function - wrapper
-double PairNNP::forceLambda_f_wrap(const gsl_vector *v, void *params)
+double PairHDNNP4G::forceLambda_f_wrap(const gsl_vector *v, void *params)
 {
-    return static_cast<PairNNP*>(params)->forceLambda_f(v);
+    return static_cast<PairHDNNP4G*>(params)->forceLambda_f(v);
 }
 
 // forceLambda gradient
-void PairNNP::forceLambda_df(const gsl_vector *v, gsl_vector *dEdLambda)
+void PairHDNNP4G::forceLambda_df(const gsl_vector *v, gsl_vector *dEdLambda)
 {
     int i,j,jmap;
     int nlocal = atom->nlocal;
@@ -832,26 +847,26 @@ void PairNNP::forceLambda_df(const gsl_vector *v, gsl_vector *dEdLambda)
 }
 
 // forceLambda gradient - wrapper
-void PairNNP::forceLambda_df_wrap(const gsl_vector *v, void *params, gsl_vector *df)
+void PairHDNNP4G::forceLambda_df_wrap(const gsl_vector *v, void *params, gsl_vector *df)
 {
-    static_cast<PairNNP*>(params)->forceLambda_df(v, df);
+    static_cast<PairHDNNP4G*>(params)->forceLambda_df(v, df);
 }
 
 // forceLambda f*df
-void PairNNP::forceLambda_fdf(const gsl_vector *v, double *f, gsl_vector *df)
+void PairHDNNP4G::forceLambda_fdf(const gsl_vector *v, double *f, gsl_vector *df)
 {
     *f = forceLambda_f(v);
     forceLambda_df(v, df);
 }
 
 // forceLambda f*df - wrapper
-void PairNNP::forceLambda_fdf_wrap(const gsl_vector *v, void *params, double *f, gsl_vector *df)
+void PairHDNNP4G::forceLambda_fdf_wrap(const gsl_vector *v, void *params, double *f, gsl_vector *df)
 {
-    static_cast<PairNNP*>(params)->forceLambda_fdf(v, f, df);
+    static_cast<PairHDNNP4G*>(params)->forceLambda_fdf(v, f, df);
 }
 
 // Calculate forcelambda vector $\lambda_i$ that is required for optimized force calculation
-void PairNNP::calculateForceLambda()
+void PairHDNNP4G::calculateForceLambda()
 {
     size_t iter = 0;
     int i,j;
@@ -929,7 +944,7 @@ void PairNNP::calculateForceLambda()
     gsl_vector_free(x);
 }
 
-void PairNNP::calculate_kspace_terms()
+void PairHDNNP4G::calculate_kspace_terms()
 {
     int i,j,k;
     int nlocal = atom->nlocal;
@@ -982,7 +997,7 @@ void PairNNP::calculate_kspace_terms()
 }
 
 // Calculate $dEelec/dQ_i$ and add one part of the $\partial Eelec/\partial Q_i$ contribution to the total force vector
-void PairNNP::calculateElecDerivatives(double *dEelecdQ, double **f)
+void PairHDNNP4G::calculateElecDerivatives(double *dEelecdQ, double **f)
 {
     int i,j,jmap;
     int nlocal = atom->nlocal;
@@ -1109,7 +1124,7 @@ void PairNNP::calculateElecDerivatives(double *dEelecdQ, double **f)
 
 // Calculate electrostatic forces and add to atomic force vectors
 // TODO: clean-up & non-periodic
-void PairNNP::calculateElecForce(double **f)
+void PairHDNNP4G::calculateElecForce(double **f)
 {
 
     int i,j,k;
@@ -1293,7 +1308,7 @@ void PairNNP::calculateElecForce(double **f)
 
 // Calculate screening function
 // TODO : add other function types
-double PairNNP::screening_f(double r)
+double PairHDNNP4G::screening_f(double r)
 {
     double x;
 
@@ -1308,7 +1323,7 @@ double PairNNP::screening_f(double r)
 
 // Calculate derivative of the screening function
 // TODO : add other function types
-double PairNNP::screening_df(double r) {
+double PairHDNNP4G::screening_df(double r) {
 
     double x;
 
@@ -1320,7 +1335,7 @@ double PairNNP::screening_df(double r) {
 }
 
 // Check for periodicity
-void PairNNP::isPeriodic()
+void PairHDNNP4G::isPeriodic()
 {
     if (domain->nonperiodic == 0) periodic = true;
     else                          periodic = false;

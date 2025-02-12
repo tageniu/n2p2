@@ -12,6 +12,7 @@
 ------------------------------------------------------------------------- */
 
 #include "fix_hdnnp.h"
+#include "pair_hdnnp_4g.h"
 #include <iostream>
 #include <gsl/gsl_multimin.h>
 #include <mpi.h>
@@ -85,7 +86,7 @@ FixHDNNP::FixHDNNP(LAMMPS *lmp, int narg, char **arg) :
 
     hdnnp = nullptr;
     kspacehdnnp = nullptr;
-    hdnnp = (PairHDNNP *) force->pair_match("^hdnnp",0);
+    hdnnp = (PairHDNNP4G *) force->pair_match("^hdnnp/4g",0);
     kspacehdnnp = (KSpaceHDNNP *) force->kspace_match("^hdnnp",0);
 
     hdnnp->chi = nullptr;
@@ -172,19 +173,22 @@ void FixHDNNP::init()
     // need a half neighbor list w/ Newton off and ghost neighbors
     // built whenever re-neighboring occurs
 
-    int irequest = neighbor->request(this,instance_me);
-    neighbor->requests[irequest]->pair = 0;
-    neighbor->requests[irequest]->fix = 1;
-    neighbor->requests[irequest]->newton = 2;
-    neighbor->requests[irequest]->ghost = 1;
+    //int irequest = neighbor->request(this,instance_me);
+    //neighbor->requests[irequest]->pair = 0;
+    //neighbor->requests[irequest]->fix = 1;
+    //neighbor->requests[irequest]->newton = 2;
+    //neighbor->requests[irequest]->ghost = 1;
 
     isPeriodic();
 
+    if (periodic) neighbor->add_request(this, NeighConst::REQ_DEFAULT);
+    else neighbor->add_request(this, NeighConst::REQ_FULL);
+
     // TODO : do we really need a full NL in periodic cases ?
-    if (periodic) { // periodic : full neighborlist
-        neighbor->requests[irequest]->half = 0;
-        neighbor->requests[irequest]->full = 1;
-    }
+    //if (periodic) { // periodic : full neighborlist
+    //    neighbor->requests[irequest]->half = 0;
+    //    neighbor->requests[irequest]->full = 1;
+    //}
 
     allocate_QEq();
 }

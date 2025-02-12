@@ -27,7 +27,7 @@ FixStyle(hdnnp,FixHDNNP)
 namespace LAMMPS_NS {
 
     class FixHDNNP : public Fix {
-        friend class PairHDNNP;
+        friend class PairHDNNP4G;
     public:
         FixHDNNP(class LAMMPS *, int, char **);
         ~FixHDNNP();
@@ -44,7 +44,7 @@ namespace LAMMPS_NS {
 
     protected:
 
-        class PairHDNNP *hdnnp; // interface to HDNNP pair_style
+        class PairHDNNP4G *hdnnp; // interface to HDNNP pair_style
         class KSpaceHDNNP *kspacehdnnp; // interface to HDNNP kspace_style
         class NeighList *list;
         char *pertype_option;

@@ -1,17 +1,32 @@
-// Copyright 2018 Andreas Singraber (University of Vienna)
-//
-// This Source Code Form is subject to the terms of the Mozilla Public
-// License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+/* -*- c++ -*- ----------------------------------------------------------
+   LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
+   https://www.lammps.org/ Sandia National Laboratories
+   LAMMPS development team: developers@lammps.org
+
+   Copyright (2003) Sandia Corporation.  Under the terms of Contract
+   DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
+   certain rights in this software.  This software is distributed under
+   the GNU General Public License.
+
+   This file initially came from n2p2 (https://github.com/CompPhysVienna/n2p2)
+   Copyright (2018) Andreas Singraber (University of Vienna)
+
+   See the README file in the top-level LAMMPS directory.
+------------------------------------------------------------------------- */
+
+/* ----------------------------------------------------------------------
+   Contributing authors: Emir Kocer
+                         Andreas Singraber
+------------------------------------------------------------------------- */
 
 #ifdef PAIR_CLASS
-
-PairStyle(nnp,PairNNP)
-
+// clang-format off
+PairStyle(hdnnp/4g,PairHDNNP4G)
+// clang-format on
 #else
 
-#ifndef LMP_PAIR_NNP_H
-#define LMP_PAIR_NNP_H
+#ifndef LMP_PAIR_HDNNP4G_H
+#define LMP_PAIR_HDNNP4G_H
 
 #include "pair.h"
 #include "InterfaceLammps.h"
@@ -19,13 +34,13 @@ PairStyle(nnp,PairNNP)
 
 namespace LAMMPS_NS {
 
-class PairNNP : public Pair {
-    friend class FixNNP;
-    friend class KSpaceNNP;
+class PairHDNNP4G : public Pair {
+    friend class FixHDNNP;
+    friend class KSpaceHDNNP;
  public:
 
-  PairNNP(class LAMMPS *);
-  virtual ~PairNNP();
+  PairHDNNP4G(class LAMMPS *);
+  virtual ~PairHDNNP4G();
   virtual void compute(int, int);
   virtual void settings(int, char **);
   virtual void coeff(int, char **);
@@ -40,7 +55,7 @@ class PairNNP : public Pair {
 
 protected:
 
-    class KSpaceNNP *kspacennp; // interface to NNP kspace_style
+    class KSpaceHDNNP *kspacehdnnp; // interface to HDNNP kspace_style
 
     int me,nprocs;
     bool periodic;
