@@ -21,7 +21,7 @@
 #include "error.h"
 #include "fft3d_wrap.h"
 #include "force.h"
-#include "gridcomm.h"
+//#include "gridcomm.h"
 #include "math_const.h"
 #include "math_special.h"
 #include "memory.h"
@@ -30,6 +30,7 @@
 #include "remap_wrap.h"
 #include "pair_hdnnp.h"
 #include "fix_hdnnp.h"
+#include "pair_hdnnp_4g.h"
 
 #include <cmath>
 #include <cstring>
@@ -76,7 +77,7 @@ KSpaceHDNNP::KSpaceHDNNP(LAMMPS *lmp) : KSpace(lmp),
       gc_buf1(nullptr), gc_buf2(nullptr), part2grid(nullptr), boxlo(nullptr)
 {
     hdnnp = nullptr;
-    hdnnp = (PairHDNNP *) force->pair_match("^hdnnp",0);
+    hdnnp = (PairHDNNP4G *) force->pair_match("^hdnnp/4g",0);
 
     ewaldflag = pppmflag = 0; // TODO check
 

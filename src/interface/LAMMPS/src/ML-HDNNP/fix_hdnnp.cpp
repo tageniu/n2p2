@@ -321,8 +321,11 @@ void FixHDNNP::process_first_network()
 {
     if(hdnnp->interface.getNnpType() == InterfaceLammps::NNPType::HDNNP_4G)
     {
-        // Set number of local atoms and add index and element.
-        hdnnp->interface.setLocalAtoms(atom->nlocal,atom->tag,atom->type);
+        // Set number of local atoms and add element.
+        hdnnp->interface.setLocalAtoms(atom->nlocal,atom->type);
+
+        // Set tags of local atoms.
+        hdnnp->interface.setLocalTags(atom->tag);
 
         // Transfer local neighbor list to HDNNP interface.
         hdnnp->transferNeighborList();

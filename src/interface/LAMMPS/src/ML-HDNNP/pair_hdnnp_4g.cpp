@@ -37,8 +37,8 @@
 #include "error.h"
 #include "update.h"
 #include "domain.h" //periodicity
-#include "fix_nnp.h"
-#include "kspace_nnp.h"
+#include "fix_hdnnp.h"
+#include "kspace_hdnnp.h"
 #include <chrono> //time
 #include <thread>
 
@@ -52,7 +52,7 @@ using namespace std;
 /* ---------------------------------------------------------------------- */
 
 PairHDNNP4G::PairHDNNP4G(LAMMPS *lmp) : Pair(lmp),
-    kspacennp                      (nullptr),
+    kspacehdnnp                    (nullptr),
     periodic                       (false  ),
     showew                         (false  ),
     resetew                        (false  ),
@@ -122,8 +122,11 @@ void PairHDNNP4G::compute(int eflag, int vflag)
 
   if (interface.getNnpType() == InterfaceLammps::NNPType::HDNNP_2G)
   {
-      // Set number of local atoms and add index and element.
-      interface.setLocalAtoms(atom->nlocal,atom->tag,atom->type);
+      // Set number of local atoms and add element.
+      interface.setLocalAtoms(atom->nlocal,atom->type);
+
+      // Set tags of local atoms.
+      interface.setLocalTags(atom->tag);
 
       // Transfer local neighbor list to NNP interface.
       transferNeighborList();
@@ -192,8 +195,8 @@ void PairHDNNP4G::compute(int eflag, int vflag)
 
       //TODO: it did not work when they were in the constructor as they are in FixHDNNP, check
       if (periodic){
-          kspacennp = nullptr;
-          kspacennp = (KSpaceHDNNP *) force->kspace_match("^nnp",0);
+          kspacehdnnp = nullptr;
+          kspacehdnnp = (KSpaceHDNNP *) force->kspace_match("^hdnnp",0);
       }
 
       // Calculates and stores k-space terms for speedup
@@ -371,10 +374,11 @@ void PairHDNNP4G::coeff(int narg, char **arg)
 
 void PairHDNNP4G::init_style()
 {
-  int irequest = neighbor->request((void *) this);
-  neighbor->requests[irequest]->pair = 1;
-  neighbor->requests[irequest]->half = 0;
-  neighbor->requests[irequest]->full = 1;
+  //int irequest = neighbor->request((void *) this);
+  //neighbor->requests[irequest]->pair = 1;
+  //neighbor->requests[irequest]->half = 0;
+  //neighbor->requests[irequest]->full = 1;
+  neighbor->add_request(this, NeighConst::REQ_FULL);
 
   // Return immediately if NNP setup is already completed.
   if (interface.isInitialized()) return;
@@ -667,7 +671,7 @@ double PairHDNNP4G::forceLambda_f(const gsl_vector *v)
 
     double eta;
 
-    if (periodic) eta = 1 / kspacennp->g_ewald; // LAMMPS truncation
+    if (periodic) eta = 1 / kspacehdnnp->g_ewald; // LAMMPS truncation
 
     E_lambda = 0.0;
     E_lambda_loc = 0.0;
@@ -704,21 +708,21 @@ double PairHDNNP4G::forceLambda_f(const gsl_vector *v)
             }
         }
         // Reciprocal space
-        for (int k = 0; k < kspacennp->kcount; k++) // over k-space
+        for (int k = 0; k < kspacehdnnp->kcount; k++) // over k-space
         {
             double sf_real_loc = 0.0;
             double sf_im_loc = 0.0;
-            kspacennp->sf_real[k] = 0.0;
-            kspacennp->sf_im[k] = 0.0;
+            kspacehdnnp->sf_real[k] = 0.0;
+            kspacehdnnp->sf_im[k] = 0.0;
             for (i = 0; i < nlocal; i++) //TODO: check
             {
                 double const lambda_i = gsl_vector_get(v,tag[i]-1);
-                sf_real_loc += lambda_i * kspacennp->sfexp_rl[k][i];
-                sf_im_loc += lambda_i * kspacennp->sfexp_im[k][i];
+                sf_real_loc += lambda_i * kspacehdnnp->sfexp_rl[k][i];
+                sf_im_loc += lambda_i * kspacehdnnp->sfexp_im[k][i];
             }
-            MPI_Allreduce(&(sf_real_loc),&(kspacennp->sf_real[k]),1,MPI_DOUBLE,MPI_SUM,world);
-            MPI_Allreduce(&(sf_im_loc),&(kspacennp->sf_im[k]),1,MPI_DOUBLE,MPI_SUM,world);
-            E_recip += kspacennp->kcoeff[k] * (pow(kspacennp->sf_real[k],2) + pow(kspacennp->sf_im[k],2));
+            MPI_Allreduce(&(sf_real_loc),&(kspacehdnnp->sf_real[k]),1,MPI_DOUBLE,MPI_SUM,world);
+            MPI_Allreduce(&(sf_im_loc),&(kspacehdnnp->sf_im[k]),1,MPI_DOUBLE,MPI_SUM,world);
+            E_recip += kspacehdnnp->kcoeff[k] * (pow(kspacehdnnp->sf_real[k],2) + pow(kspacehdnnp->sf_im[k],2));
         }
         E_lambda_loc += E_real + E_self;
     }else
@@ -771,7 +775,7 @@ void PairHDNNP4G::forceLambda_df(const gsl_vector *v, gsl_vector *dEdLambda)
 
     double eta;
 
-    if (periodic) eta = 1 / kspacennp->g_ewald; // LAMMPS truncation
+    if (periodic) eta = 1 / kspacehdnnp->g_ewald; // LAMMPS truncation
 
     grad_sum = 0.0;
     grad_sum_loc = 0.0;
@@ -784,11 +788,11 @@ void PairHDNNP4G::forceLambda_df(const gsl_vector *v, gsl_vector *dEdLambda)
 
             // Reciprocal space
             double ksum = 0.0;
-            for (int k = 0; k < kspacennp->kcount; k++) // over k-space
+            for (int k = 0; k < kspacehdnnp->kcount; k++) // over k-space
             {
-                ksum += 2.0 * kspacennp->kcoeff[k] *
-                        (kspacennp->sf_real[k] * kspacennp->sfexp_rl[k][i] +
-                         kspacennp->sf_im[k] * kspacennp->sfexp_im[k][i]);
+                ksum += 2.0 * kspacehdnnp->kcoeff[k] *
+                        (kspacehdnnp->sf_real[k] * kspacehdnnp->sfexp_rl[k][i] +
+                         kspacehdnnp->sf_im[k] * kspacehdnnp->sfexp_im[k][i]);
             }
 
             // Real space
@@ -955,9 +959,9 @@ void PairHDNNP4G::calculate_kspace_terms()
     double kdum_cos,kdum_sinx,kdum_siny,kdum_sinz;
 
     // This term is used in dEdQ calculation and can be calculated beforehand
-    for (k = 0; k < kspacennp->kcount; k++)
+    for (k = 0; k < kspacehdnnp->kcount; k++)
     {
-        kcoeff_sum += 2 * kspacennp->kcoeff[k];
+        kcoeff_sum += 2 * kspacehdnnp->kcoeff[k];
     }
 
     for (i = 0; i < nlocal; i++)
@@ -973,20 +977,20 @@ void PairHDNNP4G::calculate_kspace_terms()
             dy = x[i][1] - xy[j];
             dz = x[i][2] - xz[j];
 
-            for (int k = 0; k < kspacennp->kcount; k++) {
-                double kx = kspacennp->kxvecs[k] * kspacennp->unitk[0];
-                double ky = kspacennp->kyvecs[k] * kspacennp->unitk[1];
-                double kz = kspacennp->kzvecs[k] * kspacennp->unitk[2];
+            for (int k = 0; k < kspacehdnnp->kcount; k++) {
+                double kx = kspacehdnnp->kxvecs[k] * kspacehdnnp->unitk[0];
+                double ky = kspacehdnnp->kyvecs[k] * kspacehdnnp->unitk[1];
+                double kz = kspacehdnnp->kzvecs[k] * kspacehdnnp->unitk[2];
                 double kdr = (dx * kx + dy * ky + dz * kz) * cflength;
 
                     // Cos term
-                    if (dx != 0.0) kdum_cos += 2.0 * kspacennp->kcoeff[k] * cos(kdr);
+                    if (dx != 0.0) kdum_cos += 2.0 * kspacehdnnp->kcoeff[k] * cos(kdr);
 
                     // Sin terms
                     double sinkdr = sin(kdr);
-                    kdum_sinx -= 2.0 * kspacennp->kcoeff[k] * sinkdr * kx;
-                    kdum_siny -= 2.0 * kspacennp->kcoeff[k] * sinkdr * ky;
-                    kdum_sinz -= 2.0 * kspacennp->kcoeff[k] * sinkdr * kz;
+                    kdum_sinx -= 2.0 * kspacehdnnp->kcoeff[k] * sinkdr * kx;
+                    kdum_siny -= 2.0 * kspacehdnnp->kcoeff[k] * sinkdr * ky;
+                    kdum_sinz -= 2.0 * kspacehdnnp->kcoeff[k] * sinkdr * kz;
             }
             kcos[i][j] = kdum_cos;
             ksinx[i][j] = kdum_sinx;
@@ -1016,7 +1020,7 @@ void PairHDNNP4G::calculateElecDerivatives(double *dEelecdQ, double **f)
 
     double eta;
 
-    if (periodic) eta = 1 / kspacennp->g_ewald; // LAMMPS truncation (RuNNer truncation has been removed)
+    if (periodic) eta = 1 / kspacehdnnp->g_ewald; // LAMMPS truncation (RuNNer truncation has been removed)
 
     for (i = 0; i < nlocal; i++)
     {
@@ -1033,11 +1037,11 @@ void PairHDNNP4G::calculateElecDerivatives(double *dEelecdQ, double **f)
                 dy = x[i][1] - xy[j];
                 dz = x[i][2] - xz[j];
                 // Reciprocal part
-                for (int k = 0; k < kspacennp->kcount; k++) {
-                    double kdr = (dx * kspacennp->kxvecs[k] * kspacennp->unitk[0] +
-                                  dy * kspacennp->kyvecs[k] * kspacennp->unitk[1] +
-                                  dz * kspacennp->kzvecs[k] * kspacennp->unitk[2]) * cflength;
-                    if (dx != 0.0) Aij += 2.0 * kspacennp->kcoeff[k] * cos(kdr);
+                for (int k = 0; k < kspacehdnnp->kcount; k++) {
+                    double kdr = (dx * kspacehdnnp->kxvecs[k] * kspacehdnnp->unitk[0] +
+                                  dy * kspacehdnnp->kyvecs[k] * kspacehdnnp->unitk[1] +
+                                  dz * kspacehdnnp->kzvecs[k] * kspacehdnnp->unitk[2]) * cflength;
+                    if (dx != 0.0) Aij += 2.0 * kspacehdnnp->kcoeff[k] * cos(kdr);
                 }
                 dEelecdQ[i] += qj * Aij;
                 //dEelecdQ[i] += qj * kcos[i][j];
@@ -1142,7 +1146,7 @@ void PairHDNNP4G::calculateElecForce(double **f)
 
     double eta;
 
-    if (periodic) eta = 1 / kspacennp->g_ewald; // LAMMPS truncation
+    if (periodic) eta = 1 / kspacehdnnp->g_ewald; // LAMMPS truncation
 
     // lambda_i * dChidr contributions are added into the force vectors in n2p2
     interface.getForcesChi(forceLambda_all, atom->f);
@@ -1169,7 +1173,7 @@ void PairHDNNP4G::calculateElecForce(double **f)
                 double rij2 = SQR(dx) + SQR(dy) + SQR(dz);
                 rij = sqrt(rij2) * cflength;
 
-                if (rij < kspacennp->ewald_real_cutoff) {
+                if (rij < kspacehdnnp->ewald_real_cutoff) {
                     gams2 = gammaSqrt2[type[i]- 1][type[jmap]-1];
                     //delr = (2 / sqrt(M_PI) * (-exp(-pow(rij / sqrt2eta, 2))
                     //                          / sqrt2eta + exp(-pow(rij / gams2, 2)) / gams2)
@@ -1211,14 +1215,14 @@ void PairHDNNP4G::calculateElecForce(double **f)
                 double ksx = 0;
                 double ksy = 0;
                 double ksz = 0;
-                for (int kk = 0; kk < kspacennp->kcount; kk++) {
-                    double kx = kspacennp->kxvecs[kk] * kspacennp->unitk[0];
-                    double ky = kspacennp->kyvecs[kk] * kspacennp->unitk[1];
-                    double kz = kspacennp->kzvecs[kk] * kspacennp->unitk[2];
+                for (int kk = 0; kk < kspacehdnnp->kcount; kk++) {
+                    double kx = kspacehdnnp->kxvecs[kk] * kspacehdnnp->unitk[0];
+                    double ky = kspacehdnnp->kyvecs[kk] * kspacehdnnp->unitk[1];
+                    double kz = kspacehdnnp->kzvecs[kk] * kspacehdnnp->unitk[2];
                     double kdr = (dx * kx + dy * ky + dz * kz) * cflength;
-                    ksx -= 2.0 * kspacennp->kcoeff[kk] * sin(kdr) * kx;
-                    ksy -= 2.0 * kspacennp->kcoeff[kk] * sin(kdr) * ky;
-                    ksz -= 2.0 * kspacennp->kcoeff[kk] * sin(kdr) * kz;
+                    ksx -= 2.0 * kspacehdnnp->kcoeff[kk] * sin(kdr) * kx;
+                    ksy -= 2.0 * kspacehdnnp->kcoeff[kk] * sin(kdr) * ky;
+                    ksz -= 2.0 * kspacehdnnp->kcoeff[kk] * sin(kdr) * kz;
                 }
                 dAdrx = ksx;
                 dAdry = ksy;
