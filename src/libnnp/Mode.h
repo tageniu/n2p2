@@ -737,6 +737,31 @@ inline std::size_t Mode::getNumElements() const
     return numElements;
 }
 
+inline double Mode::getEwaldPrecision() const
+{
+    return ewaldSetup.getPrecision();
+}
+
+inline double Mode::getEwaldMaxCharge() const
+{
+    return ewaldSetup.getMaxCharge();
+}
+
+inline double Mode::getEwaldMaxSigma() const
+{
+    return ewaldSetup.getMaxQSigma();
+}
+
+inline EWALDTruncMethod Mode::getEwaldTruncationMethod() const
+{
+    return ewaldSetup.getTruncMethod();
+}
+
+inline KSPACESolver Mode::kspaceSolver() const
+{
+    return kspaceGrid.kspaceSolver;
+}
+
 inline bool Mode::useNormalization() const
 {
     return normalize;

@@ -21,14 +21,13 @@
 #include "error.h"
 #include "fft3d_wrap.h"
 #include "force.h"
-//#include "gridcomm.h"
+#include "grid3d.h"
 #include "math_const.h"
 #include "math_special.h"
 #include "memory.h"
 #include "neighbor.h"
 #include "pair.h"
 #include "remap_wrap.h"
-#include "pair_hdnnp.h"
 #include "fix_hdnnp.h"
 #include "pair_hdnnp_4g.h"
 
@@ -261,7 +260,7 @@ void KSpaceHDNNP::init()
         //if (peratom_allocate_flag) deallocate_peratom();
         //if (group_allocate_flag) deallocate_groups();
 
-        GridComm *gctmp = nullptr;
+        Grid3d *gctmp = nullptr;
         int iteration = 0;
 
         while (order >= minorder) {
@@ -274,12 +273,12 @@ void KSpaceHDNNP::init()
             set_grid_local();
             // overlap not allowed
 
-            gctmp = new GridComm(lmp, world, nx_pppm, ny_pppm, nz_pppm,
-                                 nxlo_in, nxhi_in, nylo_in, nyhi_in, nzlo_in, nzhi_in,
-                                 nxlo_out, nxhi_out, nylo_out, nyhi_out, nzlo_out, nzhi_out);
+            gctmp = new Grid3d(lmp, world, nx_pppm, ny_pppm, nz_pppm,
+                               nxlo_in, nxhi_in, nylo_in, nyhi_in, nzlo_in, nzhi_in,
+                               nxlo_out, nxhi_out, nylo_out, nyhi_out, nzlo_out, nzhi_out);
 
             int tmp1, tmp2;
-            gctmp->setup(tmp1, tmp2);
+            gctmp->setup_comm(tmp1, tmp2);
             if (gctmp->ghost_adjacent()) break;
             delete gctmp;
 
@@ -852,8 +851,8 @@ double KSpaceHDNNP::compute_pppm_eqeq()
     //   to fully sum contribution in their 3d bricks
     // remap from 3d decomposition to FFT decomposition
 
-    gc->reverse_comm_kspace(this,1,sizeof(FFT_SCALAR),REVERSE_RHO,
-                            gc_buf1,gc_buf2,MPI_FFT_SCALAR);
+    gc->reverse_comm(Grid3d::KSPACE,this,REVERSE_RHO,1,sizeof(FFT_SCALAR),
+                     gc_buf1,gc_buf2,MPI_FFT_SCALAR);
     brick2fft();
 
     // compute potential V(r) on my FFT grid and
@@ -871,7 +870,8 @@ double KSpaceHDNNP::compute_pppm_eqeq()
     // TODO check
     // differentiation_flag == 0
 
-    gc->forward_comm_kspace(this,3,sizeof(FFT_SCALAR),FORWARD_IK,gc_buf1,gc_buf2,MPI_FFT_SCALAR);
+    gc->forward_comm(Grid3d::KSPACE,this,FORWARD_IK,3,sizeof(FFT_SCALAR),
+                     gc_buf1,gc_buf2,MPI_FFT_SCALAR);
 
     // sum global energy across procs and add in volume-dependent term
 
@@ -1099,11 +1099,11 @@ void KSpaceHDNNP::allocate()
         // create ghost grid object for rho and electric field communication
         // also create 2 bufs for ghost grid cell comm, passed to GridComm methods
 
-        gc = new GridComm(lmp,world,nx_pppm,ny_pppm,nz_pppm,
-                          nxlo_in,nxhi_in,nylo_in,nyhi_in,nzlo_in,nzhi_in,
-                          nxlo_out,nxhi_out,nylo_out,nyhi_out,nzlo_out,nzhi_out);
+        gc = new Grid3d(lmp,world,nx_pppm,ny_pppm,nz_pppm,
+                        nxlo_in,nxhi_in,nylo_in,nyhi_in,nzlo_in,nzhi_in,
+                        nxlo_out,nxhi_out,nylo_out,nyhi_out,nzlo_out,nzhi_out);
 
-        gc->setup(ngc_buf1,ngc_buf2);
+        gc->setup_comm(ngc_buf1,ngc_buf2);
         npergrid = 3;
 
         memory->create(gc_buf1,npergrid*ngc_buf1,"pppm:gc_buf1");

@@ -22,6 +22,7 @@ KSpaceStyle(hdnnp,KSpaceHDNNP)
 
 #include <gsl/gsl_multimin.h>
 #include "kspace.h"
+#include "grid3d.h"
 
 #if defined(FFT_FFTW3)
 #define LMP_FFT_LIB "FFTW3"
@@ -157,7 +158,7 @@ namespace LAMMPS_NS {
 
         class FFT3d *fft1,*fft2;
         class Remap *remap;
-        class GridComm *gc;
+        class Grid3d *gc;
 
         FFT_SCALAR *gc_buf1,*gc_buf2;
         int ngc_buf1,ngc_buf2,npergrid;
