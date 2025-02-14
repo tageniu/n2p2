@@ -24,7 +24,7 @@ jobs:
           # BLAS
           sudo apt install libblas3 libblas-dev
           # OpenBLAS
-          sudo apt install libopenblas libopenblas-dev
+          sudo apt install libopenblas0 libopenblas-dev
           # Eigen library
           sudo apt install libeigen3-dev
           # GSL library
