@@ -23,6 +23,8 @@ jobs:
           sudo apt install openmpi-bin libopenmpi-dev
           # BLAS
           sudo apt install libblas3 libblas-dev
+          # OpenBLAS
+          sudo apt install libopenblas libopenblas-dev
           # Eigen library
           sudo apt install libeigen3-dev
           # GSL library
