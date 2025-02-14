@@ -5,10 +5,10 @@
 ###############################################################################
 # Enter here paths to GSL or EIGEN if they are not in your standard include
 # path. DO NOT completely remove the entry, leave at least "./".
-#PROJECT_GSL=./
-PROJECT_GSL=${HOME}/local/src/gsl-2.8/build/include
-#PROJECT_EIGEN=/usr/include/eigen3/
-PROJECT_EIGEN=${HOME}/local/src/eigen/
+PROJECT_GSL=./
+#PROJECT_GSL=${HOME}/local/src/gsl-2.8/build/include
+PROJECT_EIGEN=/usr/include/eigen3/
+#PROJECT_EIGEN=${HOME}/local/src/eigen/
 PROJECT_BOOST=${BOOST_ROOT}
 
 ###############################################################################
