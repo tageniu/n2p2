@@ -28,7 +28,7 @@ jobs:
           # Eigen library
           sudo apt install libeigen3-dev
           # GSL library
-          sudo apt install libgsl-dev
+          sudo apt install libgsl-dev libgslcblas0
 
           # Tests
           # Boost Test for C++ testing

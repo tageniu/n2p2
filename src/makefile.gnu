@@ -24,7 +24,7 @@ PROJECT_TEST=--coverage -fno-default-inline -fno-inline -fno-inline-small-functi
 PROJECT_AR=ar
 PROJECT_ARFLAGS=-rcsv
 PROJECT_CFLAGS_BLAS=
-PROJECT_LDFLAGS_BLAS=-L${OPENBLAS_ROOT}/lib -lopenblas -L/fsc/home/singraber/local/src/gsl-2.8/build/lib -lgsl -lgslcblas
+PROJECT_LDFLAGS_BLAS=-lopenblas -lgsl -lgslcblas
 
 ###############################################################################
 # COMPILE-TIME OPTIONS
