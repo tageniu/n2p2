@@ -38,13 +38,15 @@ velocity all create 300.0 12345
 thermo 1
 
 neighbor 0.0 bin
+neigh_modify 10
 
 ###############################################################################
 # NN
 ###############################################################################
-pair_style nnp dir ${nnpDir} showew yes showewsum 10 resetew no maxew 1000000 cflength 1.0 cfenergy 1.0 emap "1:O,2:Mg,3:Al,4:Au"
+pair_style hdnnp/4g dir ${nnpDir} showew yes showewsum 10 resetew no maxew 1000000 cflength 1.0 cfenergy 1.0 emap "1:O,2:Mg,3:Al,4:Au"
 pair_coeff * * ${nnpCutoff}
-fix 1 all nnp 1 1.0e-7 1.0e-1 1.0e-1 100 nnp 
+kspace_style hdnnp ewald 1.0e-6
+fix 1 all hdnnp 1 1.0e-7 1.0e-1 1.0e-1 100 nnp nnp 1
 
 ###############################################################################
 # INTEGRATOR

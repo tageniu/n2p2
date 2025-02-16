@@ -9,7 +9,7 @@ clear
 # Configuration files
 variable cfgFile         string "water.data"
 # Timesteps
-variable numSteps        equal  0
+variable numSteps        equal  10
 variable dt              equal  0.0005
 # NN
 #variable nnpCutoff       equal  4.238709440998 #8.01
@@ -39,14 +39,16 @@ timestep ${dt}
 thermo 1
 
 neighbor 0.0 bin
+neigh_modify delay 10 # Seems this was the default previously (29Oct2020).
 
 ###############################################################################
 # NN
 ###############################################################################
-pair_style nnp dir ${nnpDir} showew yes showewsum 10 resetew no maxew 1000000 cflength ${c1} cfenergy ${c2} emap "1:H,2:O"
+pair_style hdnnp/4g dir ${nnpDir} showew no showewsum 10 resetew no maxew 1000000 cflength ${c1} cfenergy ${c2} emap "1:H,2:O"
 pair_coeff * * ${nnpCutoff}
-#fix 1 all nnp 1 1.0e-5 1.0e-4 1.0e-2 100 nnp
-fix 1 all nnp 1 1.0e-7 1.0e-1 1.0e-1 100 nnp
+kspace_style hdnnp ewald 1.0e-6
+#fix 1 all hdnnp 1 1.0e-5 1.0e-4 1.0e-2 100 nnp
+fix 1 all hdnnp 1 1.0e-7 1.0e-1 1.0e-1 100 nnp nnp 1 # No clue whether this is the right flag at the end.
 
 
 ###############################################################################

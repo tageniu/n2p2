@@ -181,8 +181,11 @@ void FixHDNNP::init()
 
     isPeriodic();
 
-    if (periodic) neighbor->add_request(this, NeighConst::REQ_DEFAULT);
-    else neighbor->add_request(this, NeighConst::REQ_FULL);
+    //if (periodic) neighbor->add_request(this, NeighConst::REQ_DEFAULT);
+    //else neighbor->add_request(this, NeighConst::REQ_FULL);
+    neighbor->add_request(this, NeighConst::REQ_FULL |
+                                NeighConst::REQ_GHOST |
+                                NeighConst::REQ_NEWTON_OFF);
 
     // TODO : do we really need a full NL in periodic cases ?
     //if (periodic) { // periodic : full neighborlist
