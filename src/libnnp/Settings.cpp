@@ -64,6 +64,7 @@ map<string, shared_ptr<settings::Key>> const createKnownKeywordsMap()
     m["nnp_type"                           ] = "";
     m["fixed_gausswidth"                   ] = "";
     m["ewald_truncation_error_method"      ] = "";
+    m["kspace_solver"                      ] = "";
     m["ewald_prec"                         ] = "";
     m["screen_electrostatics"              ] = "";
     m["four_pi_epsilon"                    ] = "";
@@ -72,7 +73,7 @@ map<string, shared_ptr<settings::Key>> const createKnownKeywordsMap()
     m["random_seed"                        ] = "";
     m["test_fraction"                      ] = "";
     m["epochs"                             ] = "";
-    m["normalize_data_set"            ] = "";
+    m["normalize_data_set"                 ] = "";
     m["use_short_forces"                   ] = "";
     m["rmse_threshold"                     ] = "";
     m["rmse_threshold_energy"              ] = "";
@@ -84,7 +85,7 @@ map<string, shared_ptr<settings::Key>> const createKnownKeywordsMap()
     m["rmse_threshold_trials_charge"       ] = "";
     m["energy_fraction"                    ] = "";
     m["force_fraction"                     ] = "";
-    m["force_energy_ratio"            ] = "";
+    m["force_energy_ratio"                 ] = "";
     m["charge_fraction"                    ] = "";
     m["use_old_weights_short"              ] = "";
     m["use_old_weights_charge"             ] = "";

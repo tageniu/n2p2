@@ -48,7 +48,8 @@ Mode::Mode() : nnpType                   (NNPType::HDNNP_2G),
                convLength                (1.0              ),
                convCharge                (1.0              ),
                fourPiEps                 (1.0              ),
-               ewaldSetup                {}
+               ewaldSetup                {},
+               kspaceGrid                {}
 {
 }
 
@@ -448,18 +449,40 @@ void Mode::setupElectrostatics(bool   initialHardness,
     }
     log << "\n";
 
+    // K-Space Solver
+    if (settings.keywordExists("kspace_solver"))
+    {
+        string kspace_solver_string = settings["kspace_solver"];
+        if (kspace_solver_string == "ewald")
+        {
+            kspaceGrid.kspaceSolver = KSPACESolver::EWALD_SUM;
+        }
+        else if (kspace_solver_string == "pppm")
+        {
+            kspaceGrid.kspaceSolver = KSPACESolver::PPPM;
+        }
+        else if (kspace_solver_string == "ewald_lammps")
+        {
+            kspaceGrid.kspaceSolver = KSPACESolver::EWALD_SUM_LAMMPS;
+        }
+    }
+    else kspaceGrid.kspaceSolver = KSPACESolver::EWALD_SUM;
+
     // Ewald truncation error method.
     if (settings.keywordExists("ewald_truncation_error_method"))
     {
         string truncation_method_string =
-                settings["ewald_truncation_error_method"];
+            settings["ewald_truncation_error_method"];
         if (truncation_method_string == "0")
+        {
             ewaldSetup.setTruncMethod(EWALDTruncMethod::JACKSON_CATLOW);
-        if (truncation_method_string == "1")
+        }
+        else if (truncation_method_string == "1")
+        {
             ewaldSetup.setTruncMethod(EWALDTruncMethod::KOLAFA_PERRAM);
+        }
     }
-    else
-        ewaldSetup.setTruncMethod(EWALDTruncMethod::JACKSON_CATLOW);
+    else ewaldSetup.setTruncMethod(EWALDTruncMethod::JACKSON_CATLOW);
 
     // Ewald precision.
     if (settings.keywordExists("ewald_prec"))
@@ -467,8 +490,7 @@ void Mode::setupElectrostatics(bool   initialHardness,
         vector<string> args = split(settings["ewald_prec"]);
         ewaldSetup.readFromArgs(args);
         ewaldSetup.setMaxQSigma(maxQsigma);
-        if (normalize)
-            ewaldSetup.toNormalizedUnits(convEnergy, convLength);
+        if (normalize) ewaldSetup.toNormalizedUnits(convEnergy, convLength);
     }
     else if (ewaldSetup.getTruncMethod() == EWALDTruncMethod::KOLAFA_PERRAM)
     {
@@ -480,8 +502,10 @@ void Mode::setupElectrostatics(bool   initialHardness,
     log << strpr("Ewald precision:               %16.8E\n",
                  ewaldSetup.getPrecision());
     if (ewaldSetup.getTruncMethod() == EWALDTruncMethod::KOLAFA_PERRAM)
+    {
         log << strpr("Ewald expected maximum charge: %16.8E\n",
                      ewaldSetup.getMaxCharge());
+    }
     log << "\n";
 
     // 4 * pi * epsilon
@@ -1682,7 +1706,8 @@ void Mode::calculateAtomicNeuralNetworks(Structure& structure,
                     }
                 }
                 nn.getOutput(&(a.chi));
-                //double chi = a.chi;
+                //log << strpr("Atom %5zu (%2s) chi: %24.16E\n",
+                //             a.index, elementMap[a.element].c_str(), a.chi);
                 if (normalize) a.chi = normalized("negativity", a.chi);
             }
         }
@@ -1692,8 +1717,6 @@ void Mode::calculateAtomicNeuralNetworks(Structure& structure,
             {
                 NeuralNetwork& nn = elements.at(a.element)
                                     .neuralNetworks.at(id);
-                // This line is probably obsolete
-                //nn.setInput(&((a.G).front()));
                 // TODO: This part should simplify with improved NN class.
                 for (size_t i = 0; i < a.G.size(); ++i)
                 {
@@ -1708,6 +1731,8 @@ void Mode::calculateAtomicNeuralNetworks(Structure& structure,
                     nn.calculateDEdG(&((a.dEdG).front()));
                 }
                 nn.getOutput(&(a.energy));
+                //log << strpr("Atom %5zu (%2s) energy: %24.16E\n",
+                //             a.index, elementMap[a.element].c_str(), a.energy);
             }
         }
     }
@@ -1760,6 +1785,13 @@ void Mode::chargeEquilibration( Structure& structure,
     VectorXd hardness(numElements);
     MatrixXd gammaSqrt2(numElements, numElements);
     VectorXd sigmaSqrtPi(numElements);
+    // In case of natural units and no normalization
+    double fourPiEps = 1;
+    // In case of natural units but with normalization. Other units currently
+    // not supported.
+    if (normalize) fourPiEps = pow(convCharge, 2) / (convLength * convEnergy);
+
+    fourPiEps = 1;
 
     for (size_t i = 0; i < numElements; ++i)
     {
@@ -1787,16 +1819,12 @@ void Mode::chargeEquilibration( Structure& structure,
     {
         s.calculateDAdrQ(ewaldSetup, gammaSqrt2, fourPiEps, erfcBuf);
         s.calculateElectrostaticEnergyDerivatives(hardness,
-                                            gammaSqrt2,
-                                            sigmaSqrtPi,
-                                            screeningFunction,
-                                            fourPiEps);
+                                                  gammaSqrt2,
+                                                  sigmaSqrtPi,
+                                                  screeningFunction,
+                                                  fourPiEps);
     }
 
-    //for (auto const& a : structure.atoms)
-    //{
-    //    //structure.charge += a.charge;
-    //}
     return;
 }
 
@@ -1834,14 +1862,14 @@ void Mode::calculateCharge(Structure& structure) const
     for (vector<Atom>::iterator it = structure.atoms.begin();
          it != structure.atoms.end(); ++it)
     {
+        //log << strpr("Atom %5zu (%2s) q: %24.16E\n",
+        //             it->index, elementMap[it->element].c_str(), it->charge);
         structure.charge += it->charge;
     }
 
-    //cout << "---------------------\n";
-    //cout << strpr("Total         charge: %24.16E\n", structure.charge);
-    //cout << strpr("Reference     charge: %24.16E\n", structure.chargeRef);
-
-    //throw runtime_error("ERROR: Here ends code for 4G-HDNNPs\n");
+    //log << "---------------------\n";
+    //log << strpr("Total         charge: %24.16E\n", structure.charge);
+    //log << strpr("Reference     charge: %24.16E\n", structure.chargeRef);
 
     return;
 }
@@ -1860,8 +1888,7 @@ void Mode::calculateForces(Structure& structure) const
     {
     #pragma omp for
 #endif
-    for (size_t i = 0; i < structure.atoms.size(); ++i)
-    {
+    for (size_t i = 0; i < structure.atoms.size(); ++i) {
         // Set pointer to atom.
         Atom &ai = structure.atoms.at(i);
 
@@ -1882,21 +1909,20 @@ void Mode::calculateForces(Structure& structure) const
         // images of the central atom (happens when cutoff radii larger than
         // cell vector lengths are used, but this is already considered in the
         // self-interaction).
-        for (vector<size_t>::const_iterator it =
-                ai.neighborsUnique.begin() + 1;
+        for (vector<size_t>::const_iterator it = ai.neighborsUnique.begin() + 1;
              it != ai.neighborsUnique.end(); ++it)
         {
             // Define shortcut for atom j (aj).
             Atom &aj = structure.atoms.at(*it);
 #ifndef N2P2_FULL_SFD_MEMORY
-            vector<vector<size_t> > const& tableFull
+            vector<vector<size_t>> const& tableFull
                 = elements.at(aj.element).getSymmetryFunctionTable();
 #endif
             // Loop over atom j's neighbors (n), atom i should be one of them.
             // TODO: Could implement maxCutoffRadiusSymFunc for each element and
             //       use this instead of maxCutoffRadius.
             size_t const numNeighbors =
-                    aj.getStoredMinNumNeighbors(maxCutoffRadius);
+                aj.getStoredMinNumNeighbors(maxCutoffRadius);
             for (size_t k = 0; k < numNeighbors; ++k) {
                 Atom::Neighbor const &n = aj.neighbors[k];
                 // If atom j's neighbor is atom i add force contributions.
@@ -1933,7 +1959,7 @@ void Mode::calculateForces(Structure& structure) const
             {
                 Atom const &aj = s.atoms.at(j);
 
-#ifndef NNP_FULL_SFD_MEMORY
+#ifndef N2P2_FULL_SFD_MEMORY
                 vector<vector<size_t> > const &tableFull
                         = elements.at(aj.element).getSymmetryFunctionTable();
                 Vec3D dChidr = aj.calculateDChidr(ai.index,
@@ -1945,15 +1971,6 @@ void Mode::calculateForces(Structure& structure) const
 #endif
                 ai.f -= lambdaTotal(j) * (ai.dAdrQ[j] + dChidr);
                 ai.fElec -= lambdaElec(j) * (ai.dAdrQ[j] + dChidr);
-
-                /*
-                loopFile << "i: " << ai.index << ", j: " << j << endl
-                         << "ai.f: " << ai.f[0] << " " << ai.f[1] << " " << ai.f[2] << endl
-                         << "lambda: " << lambdaTotal(j) << endl
-                         << "dChidr: " << dChidr[0] << " " << dChidr[1] << " " << dChidr[2] << endl
-                         << "dAdrQ: " << ai.dAdrQ[j][0] << " " << ai.dAdrQ[j][1] << " " << ai.dAdrQ[j][2] << endl
-                         << endl;
-                 */
             }
         }
     }
@@ -1967,20 +1984,19 @@ void Mode::calculateForces(Structure& structure) const
 void Mode::evaluateNNP(Structure& structure, bool useForces, bool useDEdG)
 {
     useDEdG = (useForces || useDEdG);
-    if (nnpType == NNPType::HDNNP_4G) {
+    if (nnpType == NNPType::HDNNP_4G)
+    {
         structure.calculateMaxCutoffRadiusOverall(
-                ewaldSetup,
-                screeningFunction.getOuter(),
-                maxCutoffRadius);
-        structure.calculateNeighborList(maxCutoffRadius,
-                                        cutoffs);
-
+            ewaldSetup,
+            screeningFunction.getOuter(),
+            maxCutoffRadius);
+        structure.calculateNeighborList(maxCutoffRadius, cutoffs);
     }
     // TODO: For the moment sort neighbors only for 4G-HDNNPs (breaks some
     //       CI tests because of small numeric changes).
     else structure.calculateNeighborList(maxCutoffRadius, false);
 
-#ifdef NNP_NO_SF_GROUPS
+#ifdef N2P2_NO_SF_GROUPS
     calculateSymmetryFunctions(structure, true);
 #else
     calculateSymmetryFunctionGroups(structure, useForces);

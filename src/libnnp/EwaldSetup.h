@@ -43,6 +43,7 @@ public:
     EWALDTruncMethod getTruncMethod() const {return truncMethod;};
     double getMaxCharge() const {return GlobSett.maxCharge;};
     double getPrecision() const {return GlobSett.precision;};
+    double getMaxQSigma() const {return GlobSett.maxQSigma;};
 
     /** Setter for maximum width of charges.
      *

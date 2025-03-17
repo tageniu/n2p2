@@ -9,7 +9,8 @@ Version 3.0.0 - 2024-1?-??
 New features
 ^^^^^^^^^^^^
 
-* 4G-HDNNPs training/prediction in n2p2.
+* 4G-HDNNPs training/prediction in n2p2 (Philipp Misof).
+* 4G-HDNNPs prediction in LAMMPS+n2p2 (Emir Kocer).
 
 Version 2.3.0 - 2024-11-23
 --------------------------

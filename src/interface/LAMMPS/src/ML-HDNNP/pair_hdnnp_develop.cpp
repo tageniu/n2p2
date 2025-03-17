@@ -78,7 +78,7 @@ void PairHDNNPDevelop::compute(int eflag, int vflag)
   transferNeighborList(maxCutoffRadiusNeighborList);
 
   // Compute symmetry functions, atomic neural networks and add up energy.
-  interface->process();
+  interface->processDevelop();
 
   // Do all stuff related to extrapolation warnings.
   if(showew == true || showewsum > 0 || maxew >= 0) {
@@ -86,7 +86,7 @@ void PairHDNNPDevelop::compute(int eflag, int vflag)
   }
 
   // Calculate forces of local and ghost atoms.
-  interface->getForces(atom->f);
+  interface->getForcesDevelop(atom->f);
 
   // Transfer charges LAMMPS. Does nothing if nnpType != 4G.
   interface->getCharges(atom->q);

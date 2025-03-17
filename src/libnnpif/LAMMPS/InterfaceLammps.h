@@ -23,6 +23,7 @@
 #include <cstddef> // std::size_t
 #include <cstdint> // int64_t
 #include <string>  // std::string
+#include <vector>  // std::vector
 
 namespace nnp
 {
@@ -137,6 +138,10 @@ public:
      * energy contributions.
      */
     void   process();
+    /** Calculate symmetry functions, atomic neural networks and sum of local
+     * energy contributions (development version for "hdnnp/develop" pair style).
+     */
+    void   processDevelop();
     /** Return sum of local energy contributions.
      *
      * @return Sum of local energy contributions.
@@ -151,11 +156,29 @@ public:
      * @attention These atomic contributions are not physical!
      */
     double getAtomicEnergy(int index) const;
+    /** Adds electrostatic energy contribution to the total structure energy
+     *
+     * @param[in] electrostatic energy (calculated in LAMMPS).
+     *
+     */
+    void addElectrostaticEnergy(double energy);
     /** Calculate forces and add to LAMMPS atomic force arrays.
      *
      * @param[in,out] atomF LAMMPS force array for local and ghost atoms.
      */
     void   getForces(double* const* const& atomF) const;
+    /** Calculate forces and add to LAMMPS atomic force arrays (development version for
+     * "hdnnp/develop" pair style).
+     *
+     * @param[in,out] atomF LAMMPS force array for local and ghost atoms.
+     */
+    void   getForcesDevelop(double* const* const& atomF) const;
+    /** Calculate chi-term for forces and add to LAMMPS atomic force arrays.
+     *
+     * @param[in,out] atomF LAMMPS force array for local and ghost atoms.
+     */
+    void   getForcesChi(double const* const&  lambda,
+                        double* const* const& atomF) const;
     /** Transfer charges (in units of e) to LAMMPS atomic charge vector. Call
      *  after getAtomicEnergy().
      *
@@ -172,8 +195,13 @@ public:
      * @return Largest cutoff of all symmetry functions.
      */
     double getMaxCutoffRadius() const;
+    /** Get Ewald precision parameter.
+     *
+     * @return Ewald precision parameter.
+     */
+    double getEwaldPrec() const;
     /** Get largest cutoff including structure specific cutoff and screening
-     *                  cutoff
+     *  cutoff.
      *
      * @return Largest cutoff of all symmetry functions and structure specific
      *                  cutoff and screening cutoff.
@@ -202,6 +230,46 @@ public:
     /** Clear extrapolation warnings storage.
      */
     void   clearExtrapolationWarnings();
+    /** Read atomic charges from LAMMPS into n2p2.
+     */
+    void   addCharge(int index, double Q);
+    /** Write QEq arrays from n2p2 to LAMMPS.
+     *
+     * @param[in] atomChi Electronegativities.
+     * @param[in] atomJ Atomic hardness.
+     * @param[in] atomSigma Gaussian width.
+     * @param[in] qRef Reference charge of the structure.
+     */
+    void   getQEqParams(double* const&        atomChi,
+                        double* const&        atomJ,
+                        double* const&        sigmaSqrtPi,
+                        double *const *const& gammaSqrt2,
+                        double& qRef) const;
+    /** Write the derivative of total energy with respect to atomic charges
+     * from n2p2 into LAMMPS.
+     *
+     * @param[in] dEtotdQ Derivative of the total energy w.r.t. atomic charge.
+     */
+    void   getdEdQ(double* const& dEtotdQ) const;
+    /** Read screening function information from n2p2 into LAMMPS.
+     *
+     * @param[in] rScreen Array that contains screening radii.
+     */
+    void   getScreeningInfo(double* const& rScreen) const;
+    /** Transfer spatial derivatives of atomic electronegativities.
+     *
+     * @param[in] tag Atom of interest
+     * @param dChidx
+     * @param dChidy
+     * @param dChidz
+     */
+    void   getdChidxyz(int            tag,
+                       double* const& dChidx,
+                       double* const& dChidy,
+                       double* const& dChidz) const;
+    /** Set isElecDone true after running the first NN in 4G-HDNNPs.
+     */
+    void   setElecDone();
     /** Write current structure to file in units used in training data.
      *
      * @param fileName File name of the output structure file.
@@ -247,6 +315,8 @@ protected:
     std::map<std::size_t, int> mapElementToType;
     /// Structure containing local atoms.
     Structure                  structure;
+    /// True if first NN is calculated
+    bool                       isElecDone;
 };
 
 //////////////////////////////////

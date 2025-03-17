@@ -23,10 +23,12 @@ jobs:
           sudo apt install openmpi-bin libopenmpi-dev
           # BLAS
           sudo apt install libblas3 libblas-dev
+          # OpenBLAS
+          sudo apt install libopenblas0 libopenblas-dev
           # Eigen library
           sudo apt install libeigen3-dev
           # GSL library
-          sudo apt install libgsl-dev
+          sudo apt install libgsl-dev libgslcblas0
 
           # Tests
           # Boost Test for C++ testing

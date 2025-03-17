@@ -15,7 +15,9 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "Prediction.h"
+#include "Stopwatch.h"
 #include <fstream>   // std::ifstream
+#include <iostream>
 #include <map>       // std::map
 #include <stdexcept> // std::runtime_error
 #include "utility.h"

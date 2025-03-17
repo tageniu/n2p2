@@ -174,7 +174,7 @@ struct Structure
      *                         interaction.
      * @param[in] maxCutoffRadius maximal cut-off of symmetry functions.
      */
-    void                   calculateMaxCutoffRadiusOverall(
+    void                     calculateMaxCutoffRadiusOverall(
                                             EwaldSetup& ewaldSetup,
                                             double      rcutScreen,
                                             double      maxCutoffRadius);
@@ -186,8 +186,8 @@ struct Structure
      *
      */
     void                     calculateNeighborList(
-                                                    double  cutoffRadius,
-                                                    bool    sortByDistance = false);
+                                 double  cutoffRadius,
+                                 bool    sortByDistance = false);
     /** Calculate neighbor list for all atoms and setup neighbor cut-off map.
      *
      * @param[in] cutoffRadius Atoms are neighbors if there distance is smaller
@@ -197,9 +197,9 @@ struct Structure
      * @return Maximum of {maxCutoffRadius, rcutScreen, rCut}.
      */
     void                     calculateNeighborList(
-                                                   double  cutoffRadius,
-                                                   std::vector<
-                                                   std::vector<double>>& cutoffs);
+                                 double  cutoffRadius,
+                                 std::vector<
+                                 std::vector<double>>& cutoffs);
     /** Sort all neighbor lists of this structure with respect to the distance.
      */
     void                     sortNeighborList();

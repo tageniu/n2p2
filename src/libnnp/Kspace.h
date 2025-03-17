@@ -23,7 +23,14 @@
 
 namespace nnp
 {
-
+enum class KSPACESolver {
+    /// Solver 0: Ewald summation.
+    EWALD_SUM,
+    /// Solver 1: PPPM.
+    PPPM,
+    /// Solver 2: Ewald summation in LAMMPS.
+    EWALD_SUM_LAMMPS
+};
 class Kvector
 {
 public:
@@ -43,6 +50,8 @@ public:
 class KspaceGrid
 {
 public:
+    /// Method for calculating the reciprocal part.
+    KSPACESolver         kspaceSolver;
     /// Ewald summation eta parameter.
     double               eta;
     /// Cutoff in reciprocal space.

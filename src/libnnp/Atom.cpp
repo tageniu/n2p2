@@ -383,7 +383,7 @@ Vec3D Atom::calculatePairForceShort(Neighbor const&             neighbor,
                                     const *const                tableFull) const
 {
     Vec3D pairForce{};
-#ifndef NNP_FULL_SFD_MEMORY
+#ifndef N2P2_FULL_SFD_MEMORY
     if (!tableFull) throw runtime_error(
                 "ERROR: tableFull must not be null pointer");
     vector<size_t> const& table = tableFull->at(neighbor.element);
@@ -404,7 +404,7 @@ Vec3D Atom::calculateDChidr(size_t const atomIndexOfR,
                             double const maxCutoffRadius,
                             vector<vector<size_t> > const *const tableFull) const
 {
-#ifndef NNP_FULL_SFD_MEMORY
+#ifndef N2P2_FULL_SFD_MEMORY
     if (!tableFull) throw runtime_error(
                 "ERROR: tableFull must not be null pointer");
 #endif
@@ -426,7 +426,7 @@ Vec3D Atom::calculateDChidr(size_t const atomIndexOfR,
 	// atomIndexOfR must not be larger than ~max(int64_t)/2.
         if (n.tag == (int64_t)atomIndexOfR)
         {
-#ifndef NNP_FULL_SFD_MEMORY
+#ifndef N2P2_FULL_SFD_MEMORY
             vector<size_t> const& table = tableFull->at(n.element);
             for (size_t k = 0; k < n.dGdr.size(); ++k)
             {

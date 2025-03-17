@@ -57,26 +57,54 @@ void KspaceGrid::setup(Vec3D box[3], EwaldSetup& ewaldSetup)
     // Compute box copies required in each direction.
     calculatePbcCopies(kCut);
 
-    // Compute k-grid (only half sphere because of symmetry)
-    for (int i = 0; i <= n[0]; ++i)
+    double halfSphere = 1; // TODO
+    if (halfSphere)
     {
-        int sj = -n[1];
-        if (i == 0) sj = 0;
-        for (int j = sj; j <= n[1]; ++j)
+        // Compute k-grid (only half sphere because of symmetry).
+        for (int i = 0; i <= n[0]; ++i)
         {
-            int sk = -n[2];
-            if (i == 0 && j == 0) sk = 0;
-            for (int k = sk; k <= n[2]; ++k)
+            int sj = -n[1];
+            if (i == 0) sj = 0;
+            for (int j = sj; j <= n[1]; ++j)
             {
-                if (i == 0 && j == 0 && k == 0) continue;
-                Vec3D kv = i * kbox[0] + j * kbox[1] + k * kbox[2];
-                double knorm2 = kv.norm2();
-                if (kv.norm2() < kCut * kCut)
+                int sk = -n[2];
+                if (i == 0 && j == 0) sk = 0;
+                for (int k = sk; k <= n[2]; ++k)
                 {
-                    kvectors.push_back(kv);
-                    kvectors.back().knorm2 = knorm2; // TODO: Really necessary?
-                    kvectors.back().coeff = exp(-0.5 * eta * eta * knorm2)
-                                          * 2.0 * pre / knorm2;
+                    if (i == 0 && j == 0 && k == 0) continue;
+                    Vec3D kv = i * kbox[0] + j * kbox[1] + k * kbox[2];
+                    double knorm2 = kv.norm2();
+                    if (kv.norm2() < kCut * kCut)
+                    {
+                        //fprintf(stderr, "sqk = %24.16E\n", kv.norm());
+                        kvectors.push_back(kv);
+                        kvectors.back().knorm2 = knorm2; // TODO: Necessary?
+                        kvectors.back().coeff = exp(-0.5 * eta * eta * knorm2)
+                                              * 2.0 * pre / knorm2;
+                    }
+                }
+            }
+        }
+    }
+    else
+    {
+        // Compute full k-grid.
+        for (int i = -n[0]; i <= n[0]; ++i)
+        {
+            for (int j = -n[1]; j <= n[1]; ++j)
+            {
+                for (int k = -n[2]; k <= n[2]; ++k)
+                {
+                    if (i == 0 && j == 0 && k == 0) continue;
+                    Vec3D kv = i * kbox[0] + j * kbox[1] + k * kbox[2];
+                    double knorm2 = kv.norm2();
+                    if (kv.norm2() < kCut * kCut)
+                    {
+                        kvectors.push_back(kv);
+                        kvectors.back().knorm2 = knorm2; // TODO: Necessary?
+                        kvectors.back().coeff = exp(-0.5 * eta * eta * knorm2)
+                                              * 2.0 * pre / knorm2;
+                    }
                 }
             }
         }

@@ -294,7 +294,6 @@ void Structure::calculateNeighborList(
     if (isPeriodic)
     {
         calculatePbcCopies(cutoffRadius, pbc);
-
         // Use square of cutoffRadius (faster).
         cutoffRadius *= cutoffRadius;
 
@@ -625,6 +624,7 @@ double Structure::calculateElectrostaticEnergy(
         KspaceGrid grid;
         grid.setup(box, ewaldSetup);
         double const rcutReal = ewaldSetup.params.rCut;
+        //fprintf(stderr, "CAUTION: rcutReal = %f\n", rcutReal);
         double const sqrt2eta = sqrt(2.0) * ewaldSetup.params.eta;
 
 #ifdef _OPENMP
@@ -660,9 +660,7 @@ double Structure::calculateElectrostaticEnergy(
 
                 A(i, j) += (erfcSqrt2Eta - erfcGammaSqrt2) / (rij * fourPiEps);
             }
-
             // reciprocal part
-            //for (size_t j = i + 1; j < numAtoms; ++j)
             for (size_t j = i; j < numAtoms; ++j)
             {
                 Atom const &aj = atoms.at(j);
@@ -688,8 +686,7 @@ double Structure::calculateElectrostaticEnergy(
             Atom const &ai = atoms.at(i);
             size_t const ei = ai.element;
 
-            A(i, i) = hardness(ei)
-                      + 1.0 / (sigmaSqrtPi(ei) * fourPiEps);
+            A(i, i) = hardness(ei) + 1.0 / (sigmaSqrtPi(ei) * fourPiEps);
             hardnessJ(i) = hardness(ei);
             b(i) = -ai.chi;
             for (size_t j = i + 1; j < numAtoms; ++j)
@@ -841,11 +838,10 @@ double Structure::calculateScreeningEnergy(
 }
 
 
-void Structure::calculateDAdrQ(
-                            EwaldSetup&  ewaldSetup,
-                            MatrixXd     gammaSqrt2,
-                            double const fourPiEps,
-                            ErfcBuf&     erfcBuf)
+void Structure::calculateDAdrQ(EwaldSetup&  ewaldSetup,
+                               MatrixXd     gammaSqrt2,
+                               double const fourPiEps,
+                               ErfcBuf&     erfcBuf)
 {
 
 #ifdef _OPENMP
@@ -1109,7 +1105,6 @@ void Structure::calculateElectrostaticEnergyDerivatives(
             double const Qj = aj.charge;
 
             ai.pEelecpr += 0.5 * Qj * ai.dAdrQ[j];
-
             // Diagonal terms contain self-interaction --> screened
             if (i != j) ai.dEelecdQ += Qj * A(i,j);
             else if (isPeriodic)
@@ -1127,6 +1122,7 @@ void Structure::calculateElectrostaticEnergyDerivatives(
                 Atom& aj = atoms.at(j);
                 if (j < i) continue;
                 double const rij = ajN.d;
+
                 if (rij >= rcutScreen) break;
 
                 size_t const ej = aj.element;
