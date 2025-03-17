@@ -303,7 +303,7 @@ void FixHDNNP::pre_force(int /*vflag*/) {
     // Minimize QEq energy and calculate atomic charges
     calculate_QEqCharges();
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-    std::cout << "iQEq time (s) = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() / 1000000.0 << std::endl;
+    //std::cout << "iQEq time (s) = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() / 1000000.0 << std::endl;
 
 }
 
@@ -755,8 +755,7 @@ void FixHDNNP::calculate_QEqCharges()
         status = gsl_multimin_test_gradient(s->gradient, hdnnp->grad_tol); // check for convergence
 
         // TODO: dump also iteration time ?
-        if (status == GSL_SUCCESS)
-            printf ("Minimum charge distribution is found at iteration : %zu\n", iter);
+        //if (status == GSL_SUCCESS) printf ("Minimum charge distribution is found at iteration : %zu\n", iter);
     }
     while (status == GSL_CONTINUE && iter < hdnnp->maxit);
 

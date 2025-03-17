@@ -621,14 +621,14 @@ void PairHDNNP4G::handleExtrapolationWarnings()
     if(comm->me == 0) {
       if(screen) {
         fprintf(screen,
-                "### NNP EW SUMMARY ### TS: %10ld EW %10ld EWPERSTEP %10.3E\n",
+                "### NNP EW SUMMARY ### TS: %10ld EW %10ld EWPERSTEP %10.3e\n",
                 update->ntimestep,
                 globalEW,
                 double(globalEW) / showewsum);
       }
       if(logfile) {
         fprintf(logfile,
-                "### NNP EW SUMMARY ### TS: %10ld EW %10ld EWPERSTEP %10.3E\n",
+                "### NNP EW SUMMARY ### TS: %10ld EW %10ld EWPERSTEP %10.3e\n",
                 update->ntimestep,
                 globalEW,
                 double(globalEW) / showewsum);
@@ -933,8 +933,7 @@ void PairHDNNP4G::calculateForceLambda()
 
         status = gsl_multimin_test_gradient(s->gradient, grad_tol);
 
-        if (status == GSL_SUCCESS)
-            printf ("Minimum forceLambda is found at iteration: %zu\n",iter);
+        //if (status == GSL_SUCCESS) printf ("Minimum forceLambda is found at iteration: %zu\n",iter);
 
     }
     while (status == GSL_CONTINUE && iter < maxit);

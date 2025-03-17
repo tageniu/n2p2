@@ -649,8 +649,8 @@ void InterfaceLammps::addCharge(int index, double Q)
 {
     Atom& a = structure.atoms.at(index);
     a.charge = Q;
-    log << strpr("Atom %5zu (%2s) q: %24.16E\n",
-                 a.tag, elementMap[a.element].c_str(), a.charge);
+    //log << strpr("Atom %5zu (%2s) q: %24.16E\n",
+    //             a.tag, elementMap[a.element].c_str(), a.charge);
 }
 
 void InterfaceLammps::getScreeningInfo(double* const& screenInfo) const
