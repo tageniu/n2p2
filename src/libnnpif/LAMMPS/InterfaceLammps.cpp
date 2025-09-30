@@ -495,6 +495,18 @@ void InterfaceLammps::process() //TODO : add comments
             addEnergyOffset(structure, false);
         }
     }
+    else if (nnpType == NNPType::HDNNP_Q)
+    {
+        structure.energyElec = 0.0;
+        calculateAtomicNeuralNetworks(structure, true);
+        calculateEnergy(structure);
+        calculateCharge(structure);
+        if (normalize)
+        {
+            structure.energy = physicalEnergy(structure, false);
+        }
+        addEnergyOffset(structure, false);
+    }
 
     return;
 }
@@ -902,7 +914,8 @@ void InterfaceLammps::getForcesChi(double const* const&  lambda,
 
 void InterfaceLammps::getCharges(double* const& atomQ) const
 {
-    if (nnpType != NNPType::HDNNP_4G) return;
+    if (nnpType != NNPType::HDNNP_4G &&
+        nnpType != NNPType::HDNNP_Q) return;
     if (!atomQ) return;
 
     Structure const& s = structure;
@@ -911,7 +924,8 @@ void InterfaceLammps::getCharges(double* const& atomQ) const
 #endif
     for (size_t i = 0; i < s.numAtoms; ++i)
     {
-        atomQ[i] = s.atoms[i].charge;
+        size_t const localIndex = s.atoms[i].index;
+        atomQ[localIndex] = s.atoms[i].charge;
     }
 
     return;

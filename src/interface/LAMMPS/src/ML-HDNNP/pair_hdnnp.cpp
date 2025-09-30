@@ -95,6 +95,11 @@ void PairHDNNP::compute(int eflag, int vflag)
   // Compute symmetry functions, atomic neural networks and add up energy.
   interface->process();
 
+  // Synchronize predicted charges back into LAMMPS when available.
+  if (interface->getNnpType() == nnp::InterfaceLammps::NNPType::HDNNP_Q && atom->q_flag) {
+    interface->getCharges(atom->q);
+  }
+
   // Do all stuff related to extrapolation warnings.
   if (showew || showewsum > 0 || maxew >= 0) { handleExtrapolationWarnings(); }
 
@@ -239,6 +244,10 @@ void PairHDNNP::init_style()
   // Initialize interface on all processors.
   interface->initialize(directory, emap.c_str(), showew, resetew, showewsum, maxew, cflength,
                         cfenergy, maxCutoffRadius, atom->ntypes, comm->me);
+
+  if (interface->getNnpType() == nnp::InterfaceLammps::NNPType::HDNNP_Q && !atom->q_flag) {
+    error->all(FLERR, "Pair style hdnnp with Q-HDNNP requires atom attribute q");
+  }
 
   // LAMMPS cutoff radius (given via pair_coeff) should not be smaller than
   // maximum symmetry function cutoff radius.

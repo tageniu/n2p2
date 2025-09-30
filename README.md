@@ -19,6 +19,21 @@ This package uses automatic documentation generation via
 is automatically updated with the master branch of the repository can be found
 [__here__](http://compphysvienna.github.io/n2p2).
 
+## LAMMPS Q-HDNNP Charges
+
+The `pair_style hdnnp` interface now forwards per-atom charges predicted by
+Q-HDNNP models directly into LAMMPS. Ensure `atom_style charge` (or a derived
+style) is active so the `q` attribute is allocated, then inspect the values via
+standard tooling, for example:
+
+- `compute myCharge all property/atom q`
+- `dump 1 all custom 1 charges.dump id type q`
+- `thermo_style custom step pe etotal` (for checking energy consistency)
+
+The charges are updated every time `pair_hdnnp` invokes the network evaluation,
+which allows downstream polarization or post-processing workflows to consume
+self-consistent NN charge predictions without any additional coupling code.
+
 # Authors
 
 See [AUTHORS.rst](https://github.com/CompPhysVienna/n2p2/blob/master/AUTHORS.rst) for a list of contributions.
