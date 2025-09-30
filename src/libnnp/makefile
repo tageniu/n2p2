@@ -46,7 +46,7 @@ AR=$(PROJECT_AR)
 ARFLAGS=$(PROJECT_ARFLAGS)
 
 # Extra include paths for compiling.
-INCLUDES=-I./ -I$(PROJECT_EIGEN)
+INCLUDES=-I./ -I$(PROJECT_EIGEN) -I$(PROJECT_GSL)
 
 
 ###############################################################################
