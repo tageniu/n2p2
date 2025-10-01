@@ -34,10 +34,10 @@ OPTIONS+=$(PROJECT_OPTIONS)
 DEBUG=$(PROJECT_DEBUG) $(PROJECT_TEST)
 
 # Extra include paths for compiling.
-INCLUDES=-I./ -I$(PROJECT_DIR)/src/libnnp -I$(PROJECT_DIR)/src/libnnptrain -I$(PROJECT_EIGEN) -I$(PROJECT_BOOST)/include
+INCLUDES=-I./ -I$(PROJECT_INCLUDE) -I$(PROJECT_DIR)/src/libnnp -I$(PROJECT_DIR)/src/libnnptrain -I$(PROJECT_EIGEN) -I$(PROJECT_BOOST)/include
 
 # Extra flags for linking.
-LDFLAGS=$(PROJECT_LIB)/libnnp.a $(PROJECT_LIB)/libnnptrain.a $(PROJECT_LDFLAGS_BLAS) -L$(PROJECT_BOOST)/lib -lboost_system -lboost_unit_test_framework -lboost_filesystem -lpthread
+LDFLAGS=$(PROJECT_LIB)/libnnpif.a $(PROJECT_LIB)/libnnp.a $(PROJECT_LIB)/libnnptrain.a $(PROJECT_LDFLAGS_BLAS) -L$(PROJECT_BOOST)/lib -lboost_system -lboost_unit_test_framework -lboost_filesystem -lpthread
 
 
 ###############################################################################
@@ -60,7 +60,7 @@ all: $(EXE)
 no-interface: $(EXE_NOIF)
 
 %: %.cpp
-	$(CC) $(CFLAGS) $(DEBUG) $(INCLUDES) $(OPTIONS) -o $@ $< $(LDFLAGS)
+	$(MPICC) $(CFLAGS) $(DEBUG) $(INCLUDES) $(OPTIONS) -o $@ $< $(LDFLAGS)
 	./$@ --color_output=yes --log_level=$(LOG_LEVEL)
 
 coverage:
