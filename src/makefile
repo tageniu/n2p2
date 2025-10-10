@@ -21,6 +21,10 @@ COMP=gnu
 # used instead.
 MODE=static
 
+# Control whether charge is included as a feature in the energy NN (Q-HDNNP and 4G-HDNNP)
+INCLUDE_CHARGE_IN_ENERGY_Q?=1
+INCLUDE_CHARGE_IN_ENERGY_4G?=1
+
 # Installation directory for binaries.
 INSTALL_BIN=$(HOME)/local/bin
 
@@ -121,7 +125,7 @@ clean-doc-doxygen:
 # libnnp #
 ##########
 libnnp:
-	cd libnnp && $(MAKE) COMP=$(COMP) MODE=$(MODE)
+	cd libnnp && $(MAKE) COMP=$(COMP) MODE=$(MODE) INCLUDE_CHARGE_IN_ENERGY_Q=$(INCLUDE_CHARGE_IN_ENERGY_Q) INCLUDE_CHARGE_IN_ENERGY_4G=$(INCLUDE_CHARGE_IN_ENERGY_4G)
 
 clean-libnnp:
 	cd libnnp && $(MAKE) clean
@@ -130,7 +134,7 @@ clean-libnnp:
 # libnnptrain #
 ###############
 libnnptrain: libnnp
-	cd $@ && $(MAKE) COMP=$(COMP) MODE=$(MODE)
+	cd $@ && $(MAKE) COMP=$(COMP) MODE=$(MODE) INCLUDE_CHARGE_IN_ENERGY_Q=$(INCLUDE_CHARGE_IN_ENERGY_Q) INCLUDE_CHARGE_IN_ENERGY_4G=$(INCLUDE_CHARGE_IN_ENERGY_4G)
 
 clean-libnnptrain: LIBDIR=$(subst clean-,,$@)
 clean-libnnptrain:
@@ -140,7 +144,7 @@ clean-libnnptrain:
 # libnnpif #
 ############
 libnnpif: libnnp
-	cd $@ && $(MAKE) COMP=$(COMP) MODE=$(MODE) INTERFACES="$(INTERFACES)"
+	cd $@ && $(MAKE) COMP=$(COMP) MODE=$(MODE) INTERFACES="$(INTERFACES)" INCLUDE_CHARGE_IN_ENERGY_Q=$(INCLUDE_CHARGE_IN_ENERGY_Q) INCLUDE_CHARGE_IN_ENERGY_4G=$(INCLUDE_CHARGE_IN_ENERGY_4G)
 
 clean-libnnpif: LIBDIR=$(subst clean-,,$@)
 clean-libnnpif:
@@ -192,8 +196,8 @@ endef
 export LAMMPS_NNP_WARNING
 lammps-hdnnp: libnnpif
 	@echo "$$LAMMPS_NNP_WARNING"
-	cd libnnpif && $(MAKE) lammps-mf
-	cd interface && $(MAKE) $@ COMP=$(COMP) MODE=$(MODE)
+	cd libnnpif && $(MAKE) lammps-mf INCLUDE_CHARGE_IN_ENERGY_Q=$(INCLUDE_CHARGE_IN_ENERGY_Q) INCLUDE_CHARGE_IN_ENERGY_4G=$(INCLUDE_CHARGE_IN_ENERGY_4G)
+	cd interface && $(MAKE) $@ COMP=$(COMP) MODE=$(MODE) INCLUDE_CHARGE_IN_ENERGY_Q=$(INCLUDE_CHARGE_IN_ENERGY_Q) INCLUDE_CHARGE_IN_ENERGY_4G=$(INCLUDE_CHARGE_IN_ENERGY_4G)
 	@echo "$$LAMMPS_NNP_WARNING"
 
 clean-lammps-hdnnp:

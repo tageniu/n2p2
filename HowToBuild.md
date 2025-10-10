@@ -35,6 +35,21 @@
    make -j8 all
    ```
 
+## Optional: Control charge feature for Q-HDNNP and 4G-HDNNP
+
+You can control whether the predicted charge is included as a feature in the energy neural network for Q-HDNNP and 4G-HDNNP types using the following flags:
+
+- `INCLUDE_CHARGE_IN_ENERGY_Q=1` (default: enabled)
+- `INCLUDE_CHARGE_IN_ENERGY_4G=1` (default: enabled)
+
+To disable charge as a feature for either type, set the flag to 0 when building, e.g.:
+
+```
+make clean && make -j8 lammps-hdnnp INCLUDE_CHARGE_IN_ENERGY_Q=0 INCLUDE_CHARGE_IN_ENERGY_4G=1
+```
+
+This allows you to independently control charge inclusion for Q-HDNNP and 4G-HDNNP builds.
+
 ## Alternative method with system packages
 
 If you have sudo permissions, you can install system packages instead of using conda:

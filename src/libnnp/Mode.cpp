@@ -1722,8 +1722,10 @@ void Mode::calculateAtomicNeuralNetworks(Structure& structure,
                 {
                     nn.setInput(i, a.G.at(i));
                 }
-                // Set additional charge neuron.
+                // Set additional charge neuron if enabled for 4G-HDNNP.
+    #ifdef INCLUDE_CHARGE_IN_ENERGY_4G
                 nn.setInput(a.G.size(), a.charge);
+    #endif
                 nn.propagate();
                 if (derivatives)
                 {
@@ -1761,8 +1763,10 @@ void Mode::calculateAtomicNeuralNetworks(Structure& structure,
             {
                 nnShort.setInput(i, it->G.at(i));
             }
-            // Set additional charge neuron.
+            // Set additional charge neuron if enabled for Q-HDNNP.
+#ifdef INCLUDE_CHARGE_IN_ENERGY_Q
             nnShort.setInput(it->G.size(), it->charge);
+#endif
             nnShort.propagate();
             if (derivatives)
             {
