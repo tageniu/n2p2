@@ -16,9 +16,9 @@
    ```
    cd <n2p2_directory>/src/
    export LD_LIBRARY_PATH=~/anaconda3/lib:$LD_LIBRARY_PATH
-   make clean && make lammps-hdnnp
+   make clean && make -j8 lammps-hdnnp
    ```
-   > **Note:** If fails, fix the issue and run `make clean-lammps-hdnnp && make lammps-hdnnp`
+   > **Note:** If fails, fix the issue and run `make clean-lammps-hdnnp && make -j8 lammps-hdnnp`
 
 4. Install required libraries via conda:
    ```
