@@ -1308,13 +1308,35 @@ void Mode::setupNeuralNetwork()
                 // Can assume NN id is "short".
                 t.numNeuronsPerLayer.at(0) = nsf;
             }
-            else if (nnpType == NNPType::HDNNP_4G ||
-                     nnpType == NNPType::HDNNP_Q)
+            else if (nnpType == NNPType::HDNNP_4G)
             {
-                // NN with id "elec" requires only SFs.
-                if (k == "elec") t.numNeuronsPerLayer.at(0) = nsf;
-                // "short" NN needs extra charge neuron.
-                else if (k == "short") t.numNeuronsPerLayer.at(0) = nsf + 1;
+                if (k == "elec")
+                {
+                    t.numNeuronsPerLayer.at(0) = nsf;
+                }
+                else if (k == "short")
+                {
+#if INCLUDE_CHARGE_IN_ENERGY_4G
+                    t.numNeuronsPerLayer.at(0) = nsf + 1;
+#else
+                    t.numNeuronsPerLayer.at(0) = nsf;
+#endif
+                }
+            }
+            else if (nnpType == NNPType::HDNNP_Q)
+            {
+                if (k == "elec")
+                {
+                    t.numNeuronsPerLayer.at(0) = nsf;
+                }
+                else if (k == "short")
+                {
+#if INCLUDE_CHARGE_IN_ENERGY_Q
+                    t.numNeuronsPerLayer.at(0) = nsf + 1;
+#else
+                    t.numNeuronsPerLayer.at(0) = nsf;
+#endif
+                }
             }
             // Set dummy input neuron activation function.
             t.activationFunctionsPerLayer.at(0) = NeuralNetwork::AF_IDENTITY;
@@ -1523,8 +1545,14 @@ void Mode::calculateSymmetryFunctions(Structure& structure,
         if (a->hasSymmetryFunctions && !derivatives) continue;
 
         // Inform atom if extra charge neuron is present in short-range NN.
-        if (nnpType == NNPType::HDNNP_4G ||
-            nnpType == NNPType::HDNNP_Q) a->useChargeNeuron = true;
+        bool extraChargeNeuron = false;
+#if INCLUDE_CHARGE_IN_ENERGY_4G
+        if (nnpType == NNPType::HDNNP_4G) extraChargeNeuron = true;
+#endif
+#if INCLUDE_CHARGE_IN_ENERGY_Q
+        if (nnpType == NNPType::HDNNP_Q) extraChargeNeuron = true;
+#endif
+        a->useChargeNeuron = extraChargeNeuron;
 
         // Get element of atom and set number of symmetry functions.
         e = &(elements.at(a->element));
@@ -1604,8 +1632,14 @@ void Mode::calculateSymmetryFunctionGroups(Structure& structure,
         if (a->hasSymmetryFunctions && !derivatives) continue;
 
         // Inform atom if extra charge neuron is present in short-range NN.
-        if (nnpType == NNPType::HDNNP_4G ||
-            nnpType == NNPType::HDNNP_Q) a->useChargeNeuron = true;
+        bool extraChargeNeuron = false;
+#if INCLUDE_CHARGE_IN_ENERGY_4G
+        if (nnpType == NNPType::HDNNP_4G) extraChargeNeuron = true;
+#endif
+#if INCLUDE_CHARGE_IN_ENERGY_Q
+        if (nnpType == NNPType::HDNNP_Q) extraChargeNeuron = true;
+#endif
+        a->useChargeNeuron = extraChargeNeuron;
 
         // Get element of atom and set number of symmetry functions.
         e = &(elements.at(a->element));
@@ -1723,9 +1757,9 @@ void Mode::calculateAtomicNeuralNetworks(Structure& structure,
                     nn.setInput(i, a.G.at(i));
                 }
                 // Set additional charge neuron if enabled for 4G-HDNNP.
-    #ifdef INCLUDE_CHARGE_IN_ENERGY_4G
+#if INCLUDE_CHARGE_IN_ENERGY_4G
                 nn.setInput(a.G.size(), a.charge);
-    #endif
+#endif
                 nn.propagate();
                 if (derivatives)
                 {
@@ -1764,7 +1798,7 @@ void Mode::calculateAtomicNeuralNetworks(Structure& structure,
                 nnShort.setInput(i, it->G.at(i));
             }
             // Set additional charge neuron if enabled for Q-HDNNP.
-#ifdef INCLUDE_CHARGE_IN_ENERGY_Q
+#if INCLUDE_CHARGE_IN_ENERGY_Q
             nnShort.setInput(it->G.size(), it->charge);
 #endif
             nnShort.propagate();
